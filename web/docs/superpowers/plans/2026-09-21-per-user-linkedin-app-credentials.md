@@ -71,17 +71,20 @@ In `supabase/tests/ownership.sql`, raise the plan count on line 2 from `select p
 select is(has_table_privilege('authenticated','public.linkedin_app_credentials','select'), false,
   'authenticated cannot read encrypted LinkedIn app credentials');
 select is(
-  (select count(*)::int from information_schema.columns
-   where table_schema='public' and table_name='linkedin_connections'
-     and column_name in ('client_id','scopes')),
+  (select count(*)::int from pg_catalog.pg_attribute
+   where attrelid='public.linkedin_connections'::regclass
+     and attname in ('client_id','scopes') and not attisdropped),
   2,
   'connections record which application issued the token');
 select is(
-  (select count(*)::int from information_schema.columns
-   where table_schema='public' and table_name='oauth_states' and column_name='client_id'),
+  (select count(*)::int from pg_catalog.pg_attribute
+   where attrelid='public.oauth_states'::regclass
+     and attname='client_id' and not attisdropped),
   1,
   'oauth states record the application that began the flow');
 ```
+
+Read the catalog, not `information_schema`. This file sets `set local role authenticated` on line 9 and never resets it, and `information_schema.columns` is privilege-filtered — it hides columns on tables the current role cannot touch, which is exactly what test 9 asserts about `linkedin_connections`. `pg_catalog.pg_attribute` is not filtered, so the assertion tests the schema rather than the role's grants.
 
 In `supabase/plain-postgres-tests/ownership.sql`, add this block inside the existing `do $$ begin ... end $$;` that runs as the `authenticated` role, directly after the `public.user_ai_settings` block:
 
@@ -247,9 +250,9 @@ Run: `npm test -- --run src/server/credentials/crypto.test.ts src/server/config.
 
 Expected: FAIL — `"linkedinTokens"` is not a config group and the purpose union does not accept `linkedin-access-token`.
 
-- [ ] **Step 3: Add the config group and drop the central application group**
+- [ ] **Step 3: Add the token-key config group**
 
-In `src/server/config.ts`, replace the `linkedin` entry in `groups` with a token-key-only group. The `linkedin` group is removed entirely: after Task 5 nothing needs `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET` or `LINKEDIN_REDIRECT_URI`, and the redirect URI is derived from the existing `app` group.
+In `src/server/config.ts`, add a `linkedinTokens` group and **leave the existing `linkedin` group in place**. `src/server/linkedin/oauth.ts` still calls `readServerConfig("linkedin")` until Task 5 replaces those call sites; removing the group here would break this task's own `npx tsc --noEmit` gate. Task 5 removes it.
 
 ```ts
 const groups = {
@@ -259,6 +262,7 @@ const groups = {
   database: ["DATABASE_URL"],
   credentials: ["CREDENTIAL_ENCRYPTION_KEY"],
   linkedinTokens: ["LINKEDIN_TOKEN_KEY"],
+  linkedin: ["LINKEDIN_CLIENT_ID", "LINKEDIN_CLIENT_SECRET", "LINKEDIN_REDIRECT_URI", "LINKEDIN_TOKEN_KEY", "APP_URL", "LINKEDIN_VERSION"],
   worker: ["DATABASE_URL", "CREDENTIAL_ENCRYPTION_KEY"],
 } as const;
 ```
@@ -418,7 +422,9 @@ it.skipIf(!process.env.TEST_DATABASE_URL)("refuses a new client id without a sec
 
     await saveLinkedInCredentials(owner, { clientId: "app-b", clientSecret: "li-secret-bbbb" });
     expect(await getSafeLinkedInCredentials(owner)).toMatchObject({ status: "unchecked", clientId: "app-b", secretSuffix: "bbbb" });
-    expect((await getLinkedInAppCredentials(owner)).revision).toBe(4);
+    // One insert plus two updates. markLinkedInCredentialsValid does not bump,
+    // and the refused save never reached an update.
+    expect((await getLinkedInAppCredentials(owner)).revision).toBe(3);
   } finally {
     await pool.query("delete from auth.users where id=$1", [owner]);
   }
@@ -828,6 +834,7 @@ git commit -m "feat: add the LinkedIn credential settings API"
 **Files:**
 - Modify: `src/server/linkedin/oauth.ts`
 - Modify: `src/server/linkedin/oauth.test.ts`
+- Modify: `src/server/config.ts` (delete the `linkedin` group)
 
 **Interfaces:**
 - Consumes: `getLinkedInAppCredentials`, `markLinkedInCredentialsValid`, `markLinkedInCredentialsInvalid`, `LINKEDIN_ERROR_CODES`, `getSafeLinkedInCredentials` (Task 3).
@@ -927,7 +934,9 @@ Run: `TEST_DATABASE_URL=1 DATABASE_URL=postgresql://postgres:cadence_test_only@1
 
 Expected: FAIL — `beginLinkedInConnect` still reads `readServerConfig("linkedin")`, which no longer exists after Task 2, and `app_required` is not a status.
 
-- [ ] **Step 3: Resolve the owner's application in begin**
+- [ ] **Step 3: Resolve the owner's application in begin, and delete the central-application config group**
+
+In `src/server/config.ts`, delete the `linkedin` entry from `groups` entirely. Task 2 left it in place only so its typecheck could pass; nothing reads it once this step is done, and the redirect URI comes from the existing `app` group.
 
 In `src/server/linkedin/oauth.ts`, replace `beginLinkedInConnect` and add the redirect helper:
 

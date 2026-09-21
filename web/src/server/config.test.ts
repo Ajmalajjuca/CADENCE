@@ -15,3 +15,9 @@ it("accepts worker configuration without a global Anthropic key", () => {
   vi.stubEnv("CREDENTIAL_ENCRYPTION_KEY", randomBytes(32).toString("base64"));
   expect(readServerConfig("worker").DATABASE_URL).toBe("postgres://test");
 });
+
+it("requires only the token key for LinkedIn encryption and no central application", () => {
+  vi.stubEnv("LINKEDIN_TOKEN_KEY", randomBytes(32).toString("base64"));
+  expect(readServerConfig("linkedinTokens").LINKEDIN_TOKEN_KEY).toHaveLength(44);
+  expect(Object.keys(readServerConfig("linkedinTokens"))).toEqual(["LINKEDIN_TOKEN_KEY"]);
+});

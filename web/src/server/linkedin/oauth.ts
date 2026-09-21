@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getPool, withTransaction } from "../db/client";
 import { readServerConfig } from "../config";
 import { HttpError } from "../auth/http-error";
-import { encryptToken, decryptToken } from "./crypto";
+import { encryptCredential, decryptCredential } from "../credentials/crypto";
 
 function hash(value: string) { return createHash("sha256").update(value).digest("hex"); }
 const tokenSchema = z.object({ access_token: z.string().min(1), expires_in: z.number().positive() });
@@ -58,7 +58,7 @@ export async function finishLinkedInConnect(ownerId: string, state: string, code
     `insert into public.linkedin_connections(owner_id,person_urn,access_token_encrypted,expires_at,status)
      values($1,$2,$3,$4,'connected') on conflict(owner_id) do update set person_urn=excluded.person_urn,
      access_token_encrypted=excluded.access_token_encrypted,expires_at=excluded.expires_at,status='connected',updated_at=now()`,
-    [ownerId,personUrn,encryptToken(token.access_token),expiresAt]
+    [ownerId,personUrn,encryptCredential(token.access_token, { ownerId, purpose: "linkedin-access-token" }),expiresAt]
   );
   return { status: "connected", personUrn, expiresAt: expiresAt.toISOString() };
 }
@@ -76,5 +76,5 @@ export async function getLinkedInConnection(ownerId: string): Promise<DecryptedC
   const connection = result.rows[0];
   if (!connection) throw new HttpError(409,"Connect your LinkedIn account first");
   if (connection.status !== "connected" || (connection.expires_at && connection.expires_at.getTime() <= Date.now())) throw new HttpError(409,"LinkedIn connection expired. Reconnect before publishing.");
-  return { ownerId, personUrn: connection.person_urn, token: decryptToken(connection.access_token_encrypted), expiresAt: connection.expires_at };
+  return { ownerId, personUrn: connection.person_urn, token: decryptCredential(connection.access_token_encrypted, { ownerId, purpose: "linkedin-access-token" }), expiresAt: connection.expires_at };
 }

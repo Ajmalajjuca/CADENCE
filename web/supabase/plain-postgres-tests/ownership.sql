@@ -24,6 +24,10 @@ begin
    perform * from public.user_ai_settings;
    raise exception 'browser role read private AI settings';
  exception when insufficient_privilege then null; end;
+ begin
+   perform * from public.linkedin_app_credentials;
+   raise exception 'browser role read private LinkedIn credentials';
+ exception when insufficient_privilege then null; end;
 end $$;
 reset role;
 insert into public.creation_runs(owner_id,mode,entry)
