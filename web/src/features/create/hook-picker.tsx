@@ -1,0 +1,4 @@
+type Hook = { id: string; type: string; text: string; sourceUrl: string | null };
+export function HookPicker({ hooks, onChoose, busy }: { hooks: Hook[]; onChoose: (id: string) => void; busy: boolean }) {
+  return <section className="mt-6"><h2 className="text-xl font-semibold">Choose a first line</h2><div className="mt-4 space-y-3">{hooks.map(hook => <article key={hook.id} className="rounded-xl border p-5"><p className="text-xs uppercase tracking-wide text-slate-500">{hook.type}</p><p className="mt-2 whitespace-pre-wrap text-lg font-medium">{hook.text}</p>{hook.sourceUrl && <a href={hook.sourceUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-sm underline">Source</a>}<button disabled={busy} onClick={() => onChoose(hook.id)} className="mt-4 block rounded-lg bg-slate-900 px-4 py-2 text-white disabled:opacity-50">Use this hook</button></article>)}</div></section>;
+}
