@@ -1,10 +1,18 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import { readServerConfig } from "../config";
 
 export type CredentialContext = { ownerId: string; purpose: "anthropic-api-key" };
 
+/** A stored envelope this server cannot read: wrong shape, tampered, or written under a different key. */
+export class CredentialDecryptionError extends Error {
+  constructor() {
+    super("Stored credential could not be decrypted");
+    this.name = "CredentialDecryptionError";
+  }
+}
+
 function encryptionKey(): Buffer {
-  const raw = process.env.CREDENTIAL_ENCRYPTION_KEY;
-  if (!raw) throw new Error("Missing CREDENTIAL_ENCRYPTION_KEY");
+  const { CREDENTIAL_ENCRYPTION_KEY: raw } = readServerConfig("credentials");
   const decoded = Buffer.from(raw, "base64");
   if (decoded.length !== 32) throw new Error("CREDENTIAL_ENCRYPTION_KEY must decode to 32 bytes");
   return decoded;
@@ -23,10 +31,15 @@ export function encryptCredential(plaintext: string, context: CredentialContext)
 }
 
 export function decryptCredential(stored: string, context: CredentialContext): string {
-  const [version, iv, tag, ciphertext] = stored.split(":");
-  if (version !== "v1" || !iv || !tag || !ciphertext) throw new Error("Invalid encrypted credential format");
-  const decipher = createDecipheriv("aes-256-gcm", encryptionKey(), Buffer.from(iv, "base64url"));
-  decipher.setAAD(additionalData(context));
-  decipher.setAuthTag(Buffer.from(tag, "base64url"));
-  return Buffer.concat([decipher.update(Buffer.from(ciphertext, "base64url")), decipher.final()]).toString("utf8");
+  const key = encryptionKey();
+  try {
+    const [version, iv, tag, ciphertext, ...extra] = stored.split(":");
+    if (version !== "v1" || !iv || !tag || !ciphertext || extra.length) throw new Error("Invalid encrypted credential format");
+    const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(iv, "base64url"));
+    decipher.setAAD(additionalData(context));
+    decipher.setAuthTag(Buffer.from(tag, "base64url"));
+    return Buffer.concat([decipher.update(Buffer.from(ciphertext, "base64url")), decipher.final()]).toString("utf8");
+  } catch {
+    throw new CredentialDecryptionError();
+  }
 }

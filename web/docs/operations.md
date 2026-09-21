@@ -12,6 +12,8 @@ openssl rand -base64 32
 
 Install the same `CREDENTIAL_ENCRYPTION_KEY` on the web and worker services. Keep it stable across deployments: changing or losing it makes every saved user Anthropic key undecryptable. Back it up in the deployment secret store. Generate `LINKEDIN_TOKEN_KEY` with the same command and keep that value stable as well.
 
+Both services read `CREDENTIAL_ENCRYPTION_KEY` through the shared configuration reader, so a missing or malformed value fails with a server error naming the variable rather than a generic 500. If the key is rotated or lost, previously saved user keys can no longer be decrypted: affected runs fail with `AI_SETTINGS_INVALID` and the owner is asked to replace their key in **Settings**, which is the only recovery.
+
 The worker does not use a platform Anthropic key. Each invited user must save and validate their own key in **Settings** before creating or revising content. Set `CADENCE_DAILY_RUN_LIMIT` to bound invited-user generation. The worker and web service must deploy from the same revision.
 
 The curated model catalog lives in `src/server/ai/model-catalog.ts`. Review it against Anthropic's [model overview](https://platform.claude.com/docs/en/models/overview) and [model deprecation notices](https://platform.claude.com/docs/en/about-claude/models/model-deprecations) before adding, replacing, or removing an ID. Removing a model affects new selections; queued runs keep their model snapshots.
@@ -22,7 +24,7 @@ The curated model catalog lives in `src/server/ai/model-catalog.ts`. Review it a
 2. Back up the Supabase PostgreSQL database and the current encryption keys.
 3. Install `CREDENTIAL_ENCRYPTION_KEY` on both web and worker services.
 4. Apply migrations in filename order before starting the new web or worker revision.
-5. Run `supabase test db` against a non-production database.
+5. Run `supabase test db` against a non-production database. The pgTAP suite is what proves the browser roles cannot reach `user_ai_settings` or `ai_validation_limits`; `npm test` does not cover table privileges. The `supabase/plain-postgres-tests` harness grants the browser roles the same default table privileges Supabase does, so a migration that forgets to revoke them fails there too.
 6. Deploy the web and worker from the same revision, then restart both.
 7. Confirm RLS is enabled and test user A cannot select or update user B's rows.
 8. Ask each invited user to validate their Anthropic key and model choices in **Settings**.
@@ -57,6 +59,6 @@ Automated local verification on 2026-09-21:
 
 - Unit tests cover health/config, authentication guard, onboarding parsing, Claude source validation, credential encryption, settings APIs and UI, safe provider errors, worker failure preservation, Create gating, and import preview.
 - Isolated PostgreSQL integration tests cover RLS account isolation, private AI settings, validation limits, run model snapshots, stale revision protection, single-worker job claiming, resumable quick generation, exact-version approval, OAuth state and encryption, duplicate-safe publication with uncertain outcomes, credential-free owner export, and legacy import.
-- ESLint and the Next.js production build pass.
-- The Supabase pgTAP suite passes locally with private AI settings inaccessible to browser roles.
+- ESLint, `tsc --noEmit`, and the Next.js production build pass.
+- The Supabase pgTAP suite passes locally with private AI settings inaccessible to browser roles. The plain-PostgreSQL ownership harness was confirmed to fail when migration `202609210005`'s privilege revoke is removed, so that assertion depends on the migration.
 - A live two-user Anthropic credential check and a dedicated-account LinkedIn publish remain required with real external credentials before admitting beta users.

@@ -9,13 +9,14 @@ export async function validateAnthropicCredentials(
   apiKey: string,
   researchModel: string,
   writingModel: string,
-  models: ModelRetriever = new Anthropic({ apiKey }).models,
+  models?: ModelRetriever,
 ): Promise<void> {
   requireAllowedModel(researchModel, "research");
   requireAllowedModel(writingModel, "writing");
+  const retriever = models ?? new Anthropic({ apiKey }).models;
   try {
     for (const modelId of new Set([researchModel, writingModel])) {
-      const model = await models.retrieve(modelId);
+      const model = await retriever.retrieve(modelId);
       if (model.capabilities?.structured_outputs?.supported === false) {
         throw new AiServiceError("AI_MODEL_UNAVAILABLE", "The selected model does not support Cadence structured output.");
       }

@@ -1,6 +1,4 @@
 begin;
-grant all on all tables in schema public to authenticated;
-revoke all on public.user_ai_settings, public.ai_validation_limits from authenticated;
 insert into auth.users (id,instance_id,aud,role,email,encrypted_password,created_at,updated_at)
 values
  ('11111111-1111-4111-8111-111111111111','00000000-0000-0000-0000-000000000000','authenticated','authenticated','a@cadence.test','',now(),now()),

@@ -1,3 +1,5 @@
+import { HttpError } from "../auth/http-error";
+
 export type AiErrorCode =
   | "AI_SETTINGS_REQUIRED"
   | "AI_SETTINGS_INVALID"
@@ -39,4 +41,3 @@ export function mapAnthropicError(error: unknown): AiServiceError {
   }
   return new AiServiceError("AI_PROVIDER_UNAVAILABLE", "Anthropic could not complete the request. Try again shortly.", requestId);
 }
-import { HttpError } from "../auth/http-error";

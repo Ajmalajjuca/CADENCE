@@ -1,7 +1,7 @@
 import { expect, it, vi } from "vitest";
 import type { CreationRun } from "../server/db/types";
 import { AiServiceError } from "../server/ai/provider-errors";
-import { handleRunFailure, loadAiForRun } from "./ai-for-run";
+import { describeRunFailure, handleRunFailure, loadAiForRun } from "./ai-for-run";
 
 function run(owner: string, researchModel = "claude-sonnet-5", writingModel = "claude-opus-5") {
   return { id: `run-${owner}`, owner_id: owner, stage: "research", research_model: researchModel, writing_model: writingModel, ai_settings_revision: 1 } as CreationRun;
@@ -49,4 +49,11 @@ it("still records a run failure when invalidation fails", async () => {
   const error = new AiServiceError("AI_SETTINGS_INVALID", "Your Anthropic API key was rejected.");
   await expect(handleRunFailure(run("a"), error, 4, { markInvalid: vi.fn().mockRejectedValue(new Error("db unavailable")), fail })).rejects.toThrow("db unavailable");
   expect(fail).toHaveBeenCalledWith("run-a", "research", error);
+});
+
+it("describes a run failure with the stable code and provider request id only", () => {
+  const traced = new AiServiceError("AI_PROVIDER_UNAVAILABLE", "Anthropic could not complete the request. Try again shortly.", "req_abc123");
+  expect(describeRunFailure(run("a"), traced)).toBe("Run run-a failed at research: AI_PROVIDER_UNAVAILABLE (provider request req_abc123)");
+  expect(describeRunFailure(run("a"), new AiServiceError("AI_SETTINGS_INVALID", "Your Anthropic API key was rejected."))).toBe("Run run-a failed at research: AI_SETTINGS_INVALID");
+  expect(describeRunFailure(run("a"), new Error("sk-ant-secret leaked into the message"))).toBe("Run run-a failed at research: GENERATION_FAILED");
 });

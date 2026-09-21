@@ -12,4 +12,8 @@ create function auth.uid() returns uuid language sql stable as $$
   select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
 $$;
 grant usage on schema public, auth to authenticated, anon, service_role;
+-- Supabase grants the browser roles table privileges by default, so migrations
+-- that mean to keep a table private must revoke them. Mirror that default here
+-- or a missing revoke looks like a pass.
+alter default privileges in schema public grant all on tables to authenticated, anon, service_role;
 grant select, insert, update, delete on auth.users to authenticated;

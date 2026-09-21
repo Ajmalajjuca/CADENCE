@@ -83,7 +83,7 @@ export class AnthropicTransport implements AiTransport {
 }
 
 export class CadenceAi {
-  constructor(private readonly transport: AiTransport, private readonly researchModel = "test-research", private readonly writingModel = "test-writing") {}
+  constructor(private readonly transport: AiTransport, private readonly researchModel: string, private readonly writingModel: string) {}
 
   async researchIdeas(context: VoiceContext, seed = ""): Promise<RankedIdea[]> {
     const search = await this.transport.search(`Find current discussions for ${context.audience || "professionals"} about ${context.pillars.join(", ")}. ${seed} Today: ${new Date().toISOString().slice(0,10)}. Cite sources.`, this.researchModel);

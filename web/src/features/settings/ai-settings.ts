@@ -1,6 +1,6 @@
 import { getPool, withTransaction } from "../../server/db/client";
 import type { UserAiSettingsRow } from "../../server/db/types";
-import { decryptCredential, encryptCredential } from "../../server/credentials/crypto";
+import { CredentialDecryptionError, decryptCredential, encryptCredential } from "../../server/credentials/crypto";
 import { HttpError } from "../../server/auth/http-error";
 import { requireAllowedModel } from "../../server/ai/model-catalog";
 import { AiServiceError } from "../../server/ai/provider-errors";
@@ -45,6 +45,26 @@ export async function withOwnerAiSettingsLock<T>(ownerId: string, fn: (client: p
   });
 }
 
+/**
+ * Read the owner's stored key, or tell them to replace it.
+ *
+ * An envelope this server cannot open is a settings problem, not a transient
+ * generation failure: the key was rotated, lost, or written by another
+ * deployment, and no number of retries will decrypt it. Surfacing it as
+ * `AI_SETTINGS_INVALID` points the owner at Settings instead of a retry button.
+ * A misconfigured server is a different fault and propagates untouched.
+ */
+function decryptOwnerKey(row: UserAiSettingsRow, ownerId: string): string {
+  try {
+    return decryptCredential(row.api_key_encrypted, { ownerId, purpose: "anthropic-api-key" });
+  } catch (error) {
+    if (error instanceof CredentialDecryptionError) {
+      throw new AiServiceError("AI_SETTINGS_INVALID", "Your stored Anthropic API key could not be read. Replace it in Settings.");
+    }
+    throw error;
+  }
+}
+
 function missingOrInvalid(row?: UserAiSettingsRow): AiServiceError {
   if (!row) return new AiServiceError("AI_SETTINGS_REQUIRED", "Configure Claude in Settings before creating content.");
   return new AiServiceError("AI_SETTINGS_INVALID", "Revalidate or replace your Anthropic API key in Settings.");
@@ -64,7 +84,7 @@ export async function getAiRuntimeSettings(ownerId: string): Promise<AiRuntimeSe
   const row = await getRow(ownerId);
   if (!row || row.status !== "valid") throw missingOrInvalid(row);
   return {
-    apiKey: decryptCredential(row.api_key_encrypted, { ownerId, purpose: "anthropic-api-key" }),
+    apiKey: decryptOwnerKey(row, ownerId),
     researchModel: row.research_model,
     writingModel: row.writing_model,
     revision: row.revision,
@@ -95,7 +115,7 @@ export async function saveAiSettings(
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const existing = await getRow(ownerId);
     if (!suppliedKey && !existing) throw new AiServiceError("AI_SETTINGS_REQUIRED", "Enter an Anthropic API key.");
-    const apiKey = suppliedKey || decryptCredential(existing!.api_key_encrypted, { ownerId, purpose: "anthropic-api-key" });
+    const apiKey = suppliedKey || decryptOwnerKey(existing!, ownerId);
     await validate(apiKey, input.researchModel, input.writingModel);
     const encrypted = suppliedKey ? encryptCredential(apiKey, { ownerId, purpose: "anthropic-api-key" }) : existing!.api_key_encrypted;
     const suffix = suppliedKey ? apiKey.slice(-4) : existing!.key_suffix;

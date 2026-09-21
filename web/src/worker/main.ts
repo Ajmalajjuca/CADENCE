@@ -2,8 +2,7 @@ import { readServerConfig } from "../server/config";
 import { claimNextRun } from "../server/db/jobs";
 import { makeProcessDependencies, processCreationRun } from "./process-run";
 import { randomUUID } from "node:crypto";
-import { handleRunFailure, loadAiForRun } from "./ai-for-run";
-import { AiServiceError } from "../server/ai/provider-errors";
+import { describeRunFailure, handleRunFailure, loadAiForRun } from "./ai-for-run";
 
 readServerConfig("worker");
 const workerId = randomUUID();
@@ -21,8 +20,7 @@ async function loop() {
     } catch (error) {
       try { await handleRunFailure(run, error, settingsRevision); }
       catch { process.stderr.write(`Run ${run.id} failure state could not be fully recorded.\n`); }
-      const code = error instanceof AiServiceError ? error.code : "GENERATION_FAILED";
-      process.stderr.write(`Run ${run.id} failed at ${run.stage}: ${code}\n`);
+      process.stderr.write(`${describeRunFailure(run, error)}\n`);
     }
   }
 }

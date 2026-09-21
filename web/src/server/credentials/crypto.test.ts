@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { randomBytes, randomUUID } from "node:crypto";
-import { decryptCredential, encryptCredential } from "./crypto";
+import { CredentialDecryptionError, decryptCredential, encryptCredential } from "./crypto";
 
 afterEach(() => vi.unstubAllEnvs());
 
@@ -24,4 +24,21 @@ it("rejects tampered ciphertext", () => {
   ciphertext[0] ^= 1;
   parts[3] = ciphertext.toString("base64url");
   expect(() => decryptCredential(parts.join(":"), context)).toThrow();
+});
+
+it("reports a missing or malformed credential key through the shared server configuration", () => {
+  const context = { ownerId: randomUUID(), purpose: "anthropic-api-key" as const };
+  vi.stubEnv("CREDENTIAL_ENCRYPTION_KEY", "");
+  expect(() => encryptCredential("sk-ant-secret", context)).toThrow(/Missing or invalid server configuration: CREDENTIAL_ENCRYPTION_KEY/);
+  vi.stubEnv("CREDENTIAL_ENCRYPTION_KEY", randomBytes(16).toString("base64"));
+  expect(() => encryptCredential("sk-ant-secret", context)).toThrow(/32 bytes/);
+});
+
+it("distinguishes an unreadable credential from a misconfigured server", () => {
+  const context = { ownerId: randomUUID(), purpose: "anthropic-api-key" as const };
+  vi.stubEnv("CREDENTIAL_ENCRYPTION_KEY", randomBytes(32).toString("base64"));
+  expect(() => decryptCredential("not-an-envelope", context)).toThrow(CredentialDecryptionError);
+  expect(() => decryptCredential(encryptCredential("sk-ant-secret", context), { ...context, ownerId: randomUUID() })).toThrow(CredentialDecryptionError);
+  vi.stubEnv("CREDENTIAL_ENCRYPTION_KEY", "");
+  expect(() => decryptCredential("not-an-envelope", context)).not.toThrow(CredentialDecryptionError);
 });

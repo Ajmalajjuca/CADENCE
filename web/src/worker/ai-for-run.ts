@@ -47,3 +47,19 @@ export async function handleRunFailure(
   await deps.fail(run.id, run.stage, error);
   if (invalidationError) throw invalidationError;
 }
+
+/**
+ * The one line a failed run is allowed to leave behind.
+ *
+ * Failure messages are deliberately sanitised before they reach the database,
+ * which leaves an operator with nothing to correlate against Anthropic's own
+ * logs. The provider request id is the only detail the design permits us to
+ * keep, so record it here alongside the stable code — never the message, which
+ * may still carry provider text.
+ */
+export function describeRunFailure(run: CreationRun, error: unknown): string {
+  const code = error instanceof AiServiceError ? error.code : "GENERATION_FAILED";
+  const requestId = error instanceof AiServiceError ? error.providerRequestId : undefined;
+  const trace = requestId ? ` (provider request ${requestId})` : "";
+  return `Run ${run.id} failed at ${run.stage}: ${code}${trace}`;
+}

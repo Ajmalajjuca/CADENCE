@@ -25,6 +25,9 @@ type LinkedInConnection = {
 
 const SAFE_ERRORS: Record<string, string> = {
   AI_SETTINGS_INVALID: "Anthropic rejected this API key. Check it and try again.",
+  AI_SETTINGS_REQUIRED: "Enter an Anthropic API key to finish setting up Claude.",
+  AI_SETTINGS_INVALID_INPUT: "Check the API key and model selections.",
+  AI_MODEL_NOT_ALLOWED: "Select a supported model for both research and writing.",
   AI_MODEL_UNAVAILABLE: "Your Anthropic account cannot use one of these models.",
   AI_RATE_LIMITED: "Too many validation attempts. Wait one minute and try again.",
   AI_PROVIDER_UNAVAILABLE: "Anthropic could not validate these settings. Try again shortly.",

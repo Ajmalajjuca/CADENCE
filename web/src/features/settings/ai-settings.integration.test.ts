@@ -92,3 +92,20 @@ it.skipIf(!process.env.TEST_DATABASE_URL)("does not restore a stale key when a m
     await pool.query("delete from auth.users where id=$1", [owner]);
   }
 });
+
+it.skipIf(!process.env.TEST_DATABASE_URL)("sends the owner to Settings when a stored key can no longer be decrypted", async () => {
+  const owner = randomUUID();
+  const pool = getPool();
+  vi.stubEnv("CREDENTIAL_ENCRYPTION_KEY", randomBytes(32).toString("base64"));
+  const valid = vi.fn().mockResolvedValue(undefined);
+  try {
+    await pool.query("insert into auth.users(id,instance_id,aud,role,email,encrypted_password,created_at,updated_at) values($1,'00000000-0000-0000-0000-000000000000','authenticated','authenticated',$2,'',now(),now())", [owner,`${owner}@test.local`]);
+    await saveAiSettings(owner, { apiKey: "sk-ant-rotated", researchModel: "claude-sonnet-5", writingModel: "claude-opus-5" }, valid);
+    vi.stubEnv("CREDENTIAL_ENCRYPTION_KEY", randomBytes(32).toString("base64"));
+    await expect(getAiRuntimeSettings(owner)).rejects.toMatchObject({ code: "AI_SETTINGS_INVALID" });
+    await expect(saveAiSettings(owner, { researchModel: "claude-opus-5", writingModel: "claude-sonnet-5" }, valid)).rejects.toMatchObject({ code: "AI_SETTINGS_INVALID" });
+    expect(valid).toHaveBeenCalledTimes(1);
+  } finally {
+    await pool.query("delete from auth.users where id=$1", [owner]);
+  }
+});

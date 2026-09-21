@@ -156,7 +156,7 @@ Run: `supabase test db`
 
 Expected: PASS, including private-table privilege checks and creation-run snapshot columns.
 
-- [ ] **Step 6: Commit if Git is available**
+- [x] **Step 6: Commit if Git is available**
 
 ```bash
 git add supabase/migrations/202609210005_user_ai_settings.sql supabase/tests/ownership.sql supabase/plain-postgres-tests/ownership.sql src/server/db/types.ts
@@ -294,7 +294,7 @@ Run: `npm test -- --run src/server/credentials/crypto.test.ts src/server/config.
 
 Expected: PASS with wrong-owner and tamper checks.
 
-- [ ] **Step 6: Commit if Git is available**
+- [x] **Step 6: Commit if Git is available**
 
 ```bash
 git add src/server/credentials src/server/config.ts src/server/config.test.ts .env.example
@@ -443,7 +443,7 @@ Run: `npm test -- --run src/server/ai/model-catalog.test.ts src/server/ai/provid
 
 Expected: PASS; catalog rejection, no-message validation, and sanitized provider mappings are covered.
 
-- [ ] **Step 7: Commit if Git is available**
+- [x] **Step 7: Commit if Git is available**
 
 ```bash
 git add src/server/ai src/server/auth/http-error.ts src/worker/main.ts
@@ -566,7 +566,7 @@ Run: `TEST_DATABASE_URL=1 DATABASE_URL=postgresql://postgres:cadence_test_only@1
 
 Expected: PASS with the test database running and migration applied.
 
-- [ ] **Step 7: Commit if Git is available**
+- [x] **Step 7: Commit if Git is available**
 
 ```bash
 git add src/features/settings src/app/api/settings
@@ -637,7 +637,7 @@ Run with the test database: `TEST_DATABASE_URL=1 DATABASE_URL=postgresql://postg
 
 Expected: PASS and the integration run contains stable model snapshots.
 
-- [ ] **Step 6: Commit if Git is available**
+- [x] **Step 6: Commit if Git is available**
 
 ```bash
 git add src/server/db src/server/jobs
@@ -748,7 +748,7 @@ Run with the test database: `TEST_DATABASE_URL=1 DATABASE_URL=postgresql://postg
 
 Expected: PASS for owner-specific keys, snapshot models, safe failures, and revision-guarded invalidation.
 
-- [ ] **Step 7: Commit if Git is available**
+- [x] **Step 7: Commit if Git is available**
 
 ```bash
 git add src/worker src/server/db/jobs.ts src/server/config.ts src/server/config.test.ts
@@ -840,7 +840,7 @@ Run: `npm test -- --run src/features/settings/settings-page.test.tsx src/feature
 
 Expected: PASS for setup, configured, failure, LinkedIn, and Create gate states.
 
-- [ ] **Step 8: Commit if Git is available**
+- [x] **Step 8: Commit if Git is available**
 
 ```bash
 git add src/app/settings src/app/connections src/app/layout.tsx src/features/settings src/features/create
@@ -949,7 +949,7 @@ With dedicated test keys rather than production user keys:
 6. Disconnect and reconnect user A's LinkedIn account; do not publish during this credential test.
 7. Remove user B's AI settings after all B runs complete and confirm Create shows the setup gate.
 
-- [ ] **Step 7: Commit if Git is available**
+- [x] **Step 7: Commit if Git is available**
 
 ```bash
 git add src/server/export/user-export.test.ts docs/operations.md .env.example README.md
@@ -958,10 +958,51 @@ git commit -m "docs: document per-user Anthropic credential operations"
 
 ## Final review gate
 
-- [ ] Compare every acceptance criterion in the design spec with Tasks 1–8.
-- [ ] Confirm no production path reads a global Anthropic key or model variable.
-- [ ] Confirm LinkedIn OAuth and publish tests still pass unchanged.
-- [ ] Confirm the Settings API never returns plaintext or ciphertext.
-- [ ] Confirm the migration is applied before starting the new worker.
-- [ ] Run the requesting-code-review skill before declaring the implementation complete.
+- [x] Compare every acceptance criterion in the design spec with Tasks 1–8.
+- [x] Confirm no production path reads a global Anthropic key or model variable.
+- [x] Confirm LinkedIn OAuth and publish tests still pass unchanged.
+- [x] Confirm the Settings API never returns plaintext or ciphertext.
+- [x] Confirm the migration is applied before starting the new worker. (Verified locally: all five migrations apply in filename order to a fresh database before any worker test runs. Production ordering is step 4 of `docs/operations.md` → Database and backups.)
+- [x] Run the requesting-code-review skill before declaring the implementation complete.
 - [ ] Run the verification-before-completion skill and report exact test, lint, build, migration, and live-check evidence.
+
+## Gate results (2026-09-21)
+
+**Evidence**
+
+- `npm test -- --run`: 25 files passed, 6 skipped; 73 tests passed, 13 skipped.
+- `TEST_DATABASE_URL=1 DATABASE_URL=postgresql://postgres:cadence_test_only@127.0.0.1:55439/cadence_test2 npm test -- --run`: 31 files, 86 tests, all passed against a database rebuilt from `supabase/plain-postgres-tests/bootstrap.sql` plus all five migrations.
+- `npm run lint`: exit 0. `npx tsc --noEmit`: exit 0. `npm run build`: exit 0, with `/settings`, `/api/settings/ai`, and `/api/settings/ai/models` in the route list.
+- `npm run db:test` (pgTAP): 9 tests, `Result: PASS`.
+- `supabase/plain-postgres-tests/ownership.sql`: passes with migration `202609210005`'s `revoke` in place, and **fails** (`browser role read private AI settings`) with that one line removed — the assertion now depends on the migration rather than on the test file.
+- No hits for `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `RESEARCH_MODEL`, or `WRITING_MODEL` in `src/`, `scripts/`, or `.env.example`. `ciphertext` appears only inside `src/server/credentials/crypto.ts` and `src/server/linkedin/crypto.ts`.
+
+**Code review** (`superpowers:requesting-code-review`): no Critical findings. Seven Important findings; six fixed below, one declined. Eleven Minor findings; four fixed, seven recorded.
+
+**Fixed after review**
+
+1. `src/server/credentials/crypto.ts` now reads the key through `readServerConfig("credentials")`, so the config group Task 2 specified is actually used and a bad value names the variable.
+2. An undecryptable stored key raises `AI_SETTINGS_INVALID` ("Replace it in Settings") instead of a retryable `GENERATION_FAILED`. New `CredentialDecryptionError` keeps a *misconfigured server* distinguishable from an *unreadable envelope*, so the two faults no longer report as one.
+3. `describeRunFailure` records the provider request id next to the stable code in the worker's failure line — previously `providerRequestId` was captured and never read.
+4. The revision path surfaces the server's safe 409 message and offers an **Open Settings** link; it previously discarded both.
+5. Added the tests the Review Focus section promised: guided-run snapshot stability across a mid-run Settings change, `startRevisionRun` refusal on invalid settings, revision-run snapshotting, `retryRun` refusal for legacy null-snapshot runs, `createCadenceAi` guardrails, and an assertion that `claimNextRun` returns the three snapshot columns.
+6. Moved the browser-role grants into the plain-Postgres bootstrap so the private-table assertion can fail (proven above). This corrected the plan's own SQL.
+
+**Declined**
+
+- `import "server-only"` in the credential modules. The package is not installed, and `src/features/settings/ai-settings.ts` is imported by the worker via `src/worker/ai-for-run.ts`; outside a `react-server` condition the package resolves to a throwing module, which would break `npm run worker` to guard against a hypothetical future client import.
+
+**Deliberate deviation from the spec**
+
+- `GET /api/settings/ai/models` now sends `Cache-Control: private, max-age=300` rather than `public`. The body carries no user data, but it is served behind the session cookie and a shared cache must not store an authenticated response. The spec line was updated to match.
+
+**Recorded, not fixed** (Minor; no behavior risk found)
+
+- `revision` is bumped by model-only saves and doubles as the worker's invalidation guard, so a model change mid-run can cause a genuine 401 on an unchanged key to go unrecorded. A separate `key_revision` column would fix it.
+- A rate-limit attempt is consumed before cheap model validation, and the CAS loop can issue up to six `models.retrieve` calls per consumed attempt.
+- `validate-credentials.ts` funnels every throw through `mapAnthropicError`, so a programmer error would be reported as a provider outage.
+- `settings-page.test.tsx` does not cover the rate-limit or active-run delete-conflict states, and never asserts the **Remove key** button exists.
+
+**Outstanding**
+
+- Task 8 Step 6, the live two-user release check, needs real Anthropic keys and a running web + worker. It is the only item in this plan that has not been executed.

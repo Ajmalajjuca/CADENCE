@@ -50,7 +50,7 @@ it("surfaces active-run deletion conflicts", async () => {
 it("returns the safe curated model catalog", async () => {
   const response = await GET_MODELS();
   const body = await response.json();
-  expect(response.headers.get("cache-control")).toBe("public, max-age=300");
+  expect(response.headers.get("cache-control")).toBe("private, max-age=300");
   expect(body.models.map((model: { id: string }) => model.id)).toEqual(["claude-sonnet-5", "claude-opus-5"]);
   expect(JSON.stringify(body)).not.toMatch(/apiKey|secret/);
 });

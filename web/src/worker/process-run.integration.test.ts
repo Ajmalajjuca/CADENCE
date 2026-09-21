@@ -28,7 +28,7 @@ it.skipIf(!process.env.TEST_DATABASE_URL)("persists every stage and completes a 
     const deps = makeProcessDependencies(ai);
     for (let i = 0; i < 5; i++) {
       const claimed = await claimNextRun("integration-worker");
-      expect(claimed?.id).toBe(started.id);
+      expect(claimed).toMatchObject({ id: started.id, research_model: "claude-sonnet-5", writing_model: "claude-opus-5", ai_settings_revision: 1 });
       await processCreationRun(claimed!, deps);
     }
     const complete = await pool.query("select * from public.creation_runs where id=$1", [started.id]);

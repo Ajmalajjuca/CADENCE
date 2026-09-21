@@ -125,7 +125,7 @@ Add authenticated routes under `/api/settings/ai`:
 - `PUT` validates and atomically saves a new key and model pair, or changes models using the existing stored key.
 - `DELETE` removes the configuration after confirming there are no active creation runs.
 
-Add `GET /api/settings/ai/models` for the safe curated catalog. The response uses a short public cache because it contains no user data.
+Add `GET /api/settings/ai/models` for the safe curated catalog. The response carries no user data, but it is served behind the session cookie, so it uses a short `private` cache: a shared or CDN cache must not store an authenticated response.
 
 Request schemas distinguish between initial setup, key replacement, and model-only updates. Responses use stable error codes and user-safe messages. Credential validation is limited to five attempts per user in a rolling minute.
 
