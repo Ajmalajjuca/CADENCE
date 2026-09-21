@@ -43,3 +43,15 @@ export interface UserAiSettingsRow {
   created_at: Date;
   updated_at: Date;
 }
+
+export interface LinkedInAppCredentialsRow {
+  owner_id: string;
+  client_id: string;
+  client_secret_encrypted: string;
+  secret_suffix: string;
+  status: "unchecked" | "valid" | "invalid";
+  revision: number;
+  validated_at: Date | null;
+  created_at: Date;
+  updated_at: Date;
+}

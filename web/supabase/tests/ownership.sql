@@ -1,5 +1,5 @@
 begin;
-select plan(9);
+select plan(12);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
 values
@@ -36,6 +36,19 @@ select is(has_table_privilege('authenticated','public.user_ai_settings','select'
   'authenticated cannot read encrypted AI settings');
 select is(has_table_privilege('authenticated','public.ai_validation_limits','select'), false,
   'authenticated cannot read validation counters');
+select is(has_table_privilege('authenticated','public.linkedin_app_credentials','select'), false,
+  'authenticated cannot read encrypted LinkedIn app credentials');
+select is(
+  (select count(*)::int from information_schema.columns
+   where table_schema='public' and table_name='linkedin_connections'
+     and column_name in ('client_id','scopes')),
+  2,
+  'connections record which application issued the token');
+select is(
+  (select count(*)::int from information_schema.columns
+   where table_schema='public' and table_name='oauth_states' and column_name='client_id'),
+  1,
+  'oauth states record the application that began the flow');
 
 select * from finish();
 rollback;
