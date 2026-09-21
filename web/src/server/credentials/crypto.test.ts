@@ -42,3 +42,31 @@ it("distinguishes an unreadable credential from a misconfigured server", () => {
   vi.stubEnv("CREDENTIAL_ENCRYPTION_KEY", "");
   expect(() => decryptCredential("not-an-envelope", context)).not.toThrow(CredentialDecryptionError);
 });
+
+it("keys each purpose to its own encryption key and binds the owner", () => {
+  const anthropicKey = randomBytes(32).toString("base64");
+  const linkedinKey = randomBytes(32).toString("base64");
+  vi.stubEnv("CREDENTIAL_ENCRYPTION_KEY", anthropicKey);
+  vi.stubEnv("LINKEDIN_TOKEN_KEY", linkedinKey);
+  const ownerA = randomUUID(), ownerB = randomUUID();
+  const token = { ownerId: ownerA, purpose: "linkedin-access-token" as const };
+
+  const encrypted = encryptCredential("li-access-token", token);
+  expect(encrypted).not.toContain("li-access-token");
+  expect(decryptCredential(encrypted, token)).toBe("li-access-token");
+
+  // Owner binding: nothing today protects LinkedIn tokens this way.
+  expect(() => decryptCredential(encrypted, { ...token, ownerId: ownerB })).toThrow(CredentialDecryptionError);
+  // Purpose binding: the same key, a different purpose, must not open it.
+  expect(() => decryptCredential(encrypted, { ownerId: ownerA, purpose: "linkedin-client-secret" })).toThrow(CredentialDecryptionError);
+  // Key separation: an Anthropic secret does not open under the LinkedIn key.
+  const anthropic = encryptCredential("sk-ant-secret", { ownerId: ownerA, purpose: "anthropic-api-key" });
+  vi.stubEnv("CREDENTIAL_ENCRYPTION_KEY", linkedinKey);
+  expect(() => decryptCredential(anthropic, { ownerId: ownerA, purpose: "anthropic-api-key" })).toThrow(CredentialDecryptionError);
+});
+
+it("reports a missing LinkedIn token key by name", () => {
+  vi.stubEnv("LINKEDIN_TOKEN_KEY", "");
+  expect(() => encryptCredential("li-access-token", { ownerId: randomUUID(), purpose: "linkedin-access-token" }))
+    .toThrow(/Missing or invalid server configuration: LINKEDIN_TOKEN_KEY/);
+});

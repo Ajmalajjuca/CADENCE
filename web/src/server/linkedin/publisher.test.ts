@@ -2,7 +2,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { afterEach, expect, it, vi } from "vitest";
 import { getPool } from "../db/client";
 import { createVersion, approveVersion } from "../../features/drafts/service";
-import { encryptToken } from "./crypto";
+import { encryptCredential } from "../credentials/crypto";
 import { publishApprovedVersion, type LinkedInTransport } from "./publisher";
 
 afterEach(() => vi.unstubAllEnvs());
@@ -14,7 +14,7 @@ it.skipIf(!process.env.TEST_DATABASE_URL)("publishes one approved version once a
   vi.stubEnv("LINKEDIN_VERSION", "202608");
   try {
     await pool.query("insert into auth.users(id,instance_id,aud,role,email,encrypted_password,created_at,updated_at) values($1,'00000000-0000-0000-0000-000000000000','authenticated','authenticated',$2,'',now(),now()),($3,'00000000-0000-0000-0000-000000000000','authenticated','authenticated',$4,'',now(),now())", [a,`${a}@test.local`,b,`${b}@test.local`]);
-    await pool.query("insert into public.linkedin_connections(owner_id,person_urn,access_token_encrypted,expires_at) values($1,'urn:li:person:member123',$2,now()+interval '1 day')", [a,encryptToken("test-token")]);
+    await pool.query("insert into public.linkedin_connections(owner_id,person_urn,access_token_encrypted,expires_at) values($1,'urn:li:person:member123',$2,now()+interval '1 day')", [a,encryptCredential("test-token", { ownerId: a, purpose: "linkedin-access-token" })]);
     const draft = await pool.query<{ id: string }>("insert into public.drafts(owner_id,title) values($1,'A post') returning id", [a]);
     const first = await createVersion(a,draft.rows[0].id,"Exact approved text",[]);
     let calls = 0;

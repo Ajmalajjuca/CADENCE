@@ -1,19 +1,9 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { randomBytes, randomUUID } from "node:crypto";
-import { encryptToken, decryptToken } from "./crypto";
 import { beginLinkedInConnect, buildLinkedInAuthorizationUrl, fetchLinkedInMemberSub, finishLinkedInConnect } from "./oauth";
 import { getPool } from "../db/client";
 
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
-
-it("encrypts access tokens with fresh ciphertext", () => {
-  vi.stubEnv("LINKEDIN_TOKEN_KEY", randomBytes(32).toString("base64"));
-  const a = encryptToken("secret-token");
-  const b = encryptToken("secret-token");
-  expect(a).not.toContain("secret-token");
-  expect(a).not.toBe(b);
-  expect(decryptToken(a)).toBe("secret-token");
-});
 
 it("builds the authorization URL with current self-service permissions", () => {
   const url = buildLinkedInAuthorizationUrl("client-id", "http://localhost:3000/api/linkedin/callback", "state-value");

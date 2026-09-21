@@ -1,7 +1,8 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { readServerConfig } from "../config";
 
-export type CredentialContext = { ownerId: string; purpose: "anthropic-api-key" };
+export type CredentialPurpose = "anthropic-api-key" | "linkedin-access-token" | "linkedin-client-secret";
+export type CredentialContext = { ownerId: string; purpose: CredentialPurpose };
 
 /** A stored envelope this server cannot read: wrong shape, tampered, or written under a different key. */
 export class CredentialDecryptionError extends Error {
@@ -11,10 +12,21 @@ export class CredentialDecryptionError extends Error {
   }
 }
 
-function encryptionKey(): Buffer {
-  const { CREDENTIAL_ENCRYPTION_KEY: raw } = readServerConfig("credentials");
+/**
+ * Two keys, not one.
+ *
+ * A single key would be simpler, but rotating it would then destroy every
+ * provider's secrets at once. Splitting by provider keeps each blast radius
+ * to the provider whose key changed. The additional authenticated data still
+ * separates purposes inside a shared key.
+ */
+function encryptionKey(purpose: CredentialPurpose): Buffer {
+  const [group, variable] = purpose === "anthropic-api-key"
+    ? ["credentials" as const, "CREDENTIAL_ENCRYPTION_KEY"]
+    : ["linkedinTokens" as const, "LINKEDIN_TOKEN_KEY"];
+  const raw = readServerConfig(group)[variable];
   const decoded = Buffer.from(raw, "base64");
-  if (decoded.length !== 32) throw new Error("CREDENTIAL_ENCRYPTION_KEY must decode to 32 bytes");
+  if (decoded.length !== 32) throw new Error(`${variable} must decode to 32 bytes`);
   return decoded;
 }
 
@@ -24,14 +36,14 @@ function additionalData(context: CredentialContext): Buffer {
 
 export function encryptCredential(plaintext: string, context: CredentialContext): string {
   const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", encryptionKey(), iv);
+  const cipher = createCipheriv("aes-256-gcm", encryptionKey(context.purpose), iv);
   cipher.setAAD(additionalData(context));
   const ciphertext = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
   return ["v1", iv.toString("base64url"), cipher.getAuthTag().toString("base64url"), ciphertext.toString("base64url")].join(":");
 }
 
 export function decryptCredential(stored: string, context: CredentialContext): string {
-  const key = encryptionKey();
+  const key = encryptionKey(context.purpose);
   try {
     const [version, iv, tag, ciphertext, ...extra] = stored.split(":");
     if (version !== "v1" || !iv || !tag || !ciphertext || extra.length) throw new Error("Invalid encrypted credential format");

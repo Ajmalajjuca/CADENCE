@@ -6,6 +6,7 @@ const groups = {
   app: ["APP_URL"],
   database: ["DATABASE_URL"],
   credentials: ["CREDENTIAL_ENCRYPTION_KEY"],
+  linkedinTokens: ["LINKEDIN_TOKEN_KEY"],
   linkedin: ["LINKEDIN_CLIENT_ID", "LINKEDIN_CLIENT_SECRET", "LINKEDIN_REDIRECT_URI", "LINKEDIN_TOKEN_KEY", "APP_URL", "LINKEDIN_VERSION"],
   worker: ["DATABASE_URL", "CREDENTIAL_ENCRYPTION_KEY"],
 } as const;
