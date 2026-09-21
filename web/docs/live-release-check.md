@@ -16,14 +16,27 @@ ANTHROPIC_WRITING_MODEL
 
 No code reads them any more (`grep -rn 'ANTHROPIC_API_KEY\|ANTHROPIC_MODEL' src/` is empty), but deleting them removes any doubt that generation is running on a per-user key.
 
-Confirm the local stack is up and migrated:
+### Which database is this running against?
 
 ```bash
-supabase status
-psql "$(grep '^DATABASE_URL=' .env.local | cut -d= -f2-)" -c "select count(*) from public.user_ai_settings"
+grep -E '^(SUPABASE_URL|APP_URL)=' .env.local
 ```
 
-A successful count — even zero — means migration `202609210005` is applied. An `undefined table` error means it is not; apply migrations before going further.
+`.env.local` currently points at the **hosted** Supabase project, so everything below would touch real project data and real email delivery. Pick one before going further:
+
+**Option A — run the check against the local stack (recommended).** Keep a copy of your current `.env.local`, then point it at the local stack: `SUPABASE_URL=http://127.0.0.1:54321`, the local anon and service-role keys, and `DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres` (all four are printed by `supabase status`). Magic links then land in Inbucket at `http://localhost:54324` and the two test users never exist anywhere real. Restore your file afterwards.
+
+**Option B — run it against the hosted project.** Then use two real addresses you can receive mail at instead of `@example.test`, delete both users from the Supabase dashboard when you are done, and run the SQL below in the dashboard's SQL editor rather than through `psql`.
+
+Note on `psql` and your URL: the hosted password contains `@`, and `psql` splits on the *first* `@` while `pg` splits on the last, so `psql "$DATABASE_URL"` fails with a hostname error even though the app connects fine. Use the SQL editor, or percent-encode the password as `%40`.
+
+Confirm the migration is applied against whichever database you chose — this must return a count, even zero:
+
+```sql
+select count(*) from public.user_ai_settings;
+```
+
+An `undefined table` error means migration `202609210005` has not been applied there; apply migrations before going further.
 
 Start both processes in separate terminals:
 
@@ -47,7 +60,7 @@ for email in cadence-a@example.test cadence-b@example.test; do
 done
 ```
 
-Sign in at `http://localhost:3000/sign-in`. The magic link is caught locally by Inbucket at `http://localhost:54324`. Use two browser profiles (or one normal and one private window) so both sessions can be open at once. Finish onboarding for each user — Create is gated on a complete voice profile as well as on Claude settings.
+Sign in at `http://localhost:3000/sign-in`. On the local stack the magic link is caught by Inbucket at `http://localhost:54324`; against the hosted project it is a real email to a real address. Use two browser profiles (or one normal and one private window) so both sessions can be open at once. Finish onboarding for each user — Create is gated on a complete voice profile as well as on Claude settings.
 
 ## 2. User A saves key A · Sonnet research, Opus writing
 
@@ -65,8 +78,9 @@ Create → "I have a topic" → something innocuous, Quick mode. Watch the worke
 
 ## 5. Inspect the database
 
-```bash
-psql "$(grep '^DATABASE_URL=' .env.local | cut -d= -f2-)" <<'SQL'
+Run this against the database you chose in step 0 — the SQL editor for the hosted project, or `psql` for the local stack:
+
+```sql
 -- Each run carries its own owner's snapshot, and they differ between users.
 select owner_id, research_model, writing_model, ai_settings_revision, status
 from public.creation_runs order by created_at desc limit 10;
@@ -83,7 +97,6 @@ where stages::text like '%sk-ant-%' or coalesce(error_message,'') like '%sk-ant-
 -- No column anywhere else in public is holding a key.
 select table_name, column_name from information_schema.columns
 where table_schema='public' and column_name ilike '%api_key%';
-SQL
 ```
 
 Expect: A's runs `claude-sonnet-5` / `claude-opus-5`, B's the reverse; `envelope` = `v1:` for both rows; all three counts zero; the only `%api_key%` column is `user_ai_settings.api_key_encrypted`.
