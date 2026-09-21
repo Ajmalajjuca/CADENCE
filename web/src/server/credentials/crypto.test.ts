@@ -59,14 +59,27 @@ it("keys each purpose to its own encryption key and binds the owner", () => {
   expect(() => decryptCredential(encrypted, { ...token, ownerId: ownerB })).toThrow(CredentialDecryptionError);
   // Purpose binding: the same key, a different purpose, must not open it.
   expect(() => decryptCredential(encrypted, { ownerId: ownerA, purpose: "linkedin-client-secret" })).toThrow(CredentialDecryptionError);
-  // Key separation: an Anthropic secret does not open under the LinkedIn key.
-  const anthropic = encryptCredential("sk-ant-secret", { ownerId: ownerA, purpose: "anthropic-api-key" });
-  vi.stubEnv("CREDENTIAL_ENCRYPTION_KEY", linkedinKey);
-  expect(() => decryptCredential(anthropic, { ownerId: ownerA, purpose: "anthropic-api-key" })).toThrow(CredentialDecryptionError);
 });
 
 it("reports a missing LinkedIn token key by name", () => {
   vi.stubEnv("LINKEDIN_TOKEN_KEY", "");
   expect(() => encryptCredential("li-access-token", { ownerId: randomUUID(), purpose: "linkedin-access-token" }))
     .toThrow(/Missing or invalid server configuration: LINKEDIN_TOKEN_KEY/);
+});
+
+it("reads each purpose's key from its own configuration group", () => {
+  const owner = randomUUID();
+  // Only the Anthropic key is configured: LinkedIn purposes must complain
+  // about their own variable, by name.
+  vi.stubEnv("CREDENTIAL_ENCRYPTION_KEY", randomBytes(32).toString("base64"));
+  vi.stubEnv("LINKEDIN_TOKEN_KEY", "");
+  expect(encryptCredential("sk-ant-secret", { ownerId: owner, purpose: "anthropic-api-key" })).toMatch(/^v1:/);
+  expect(() => encryptCredential("li-token", { ownerId: owner, purpose: "linkedin-access-token" })).toThrow(/LINKEDIN_TOKEN_KEY/);
+  expect(() => encryptCredential("li-secret", { ownerId: owner, purpose: "linkedin-client-secret" })).toThrow(/LINKEDIN_TOKEN_KEY/);
+
+  // And the reverse: only LinkedIn configured.
+  vi.stubEnv("CREDENTIAL_ENCRYPTION_KEY", "");
+  vi.stubEnv("LINKEDIN_TOKEN_KEY", randomBytes(32).toString("base64"));
+  expect(encryptCredential("li-token", { ownerId: owner, purpose: "linkedin-access-token" })).toMatch(/^v1:/);
+  expect(() => encryptCredential("sk-ant-secret", { ownerId: owner, purpose: "anthropic-api-key" })).toThrow(/CREDENTIAL_ENCRYPTION_KEY/);
 });

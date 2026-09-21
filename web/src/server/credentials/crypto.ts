@@ -1,5 +1,5 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
-import { readServerConfig } from "../config";
+import { readServerConfig, type ConfigGroup } from "../config";
 
 export type CredentialPurpose = "anthropic-api-key" | "linkedin-access-token" | "linkedin-client-secret";
 export type CredentialContext = { ownerId: string; purpose: CredentialPurpose };
@@ -19,11 +19,19 @@ export class CredentialDecryptionError extends Error {
  * provider's secrets at once. Splitting by provider keeps each blast radius
  * to the provider whose key changed. The additional authenticated data still
  * separates purposes inside a shared key.
+ *
+ * This map is total over `CredentialPurpose` on purpose: adding a purpose
+ * without choosing its key is a type error, not a silent reuse of another
+ * provider's key.
  */
+const KEY_BY_PURPOSE: Record<CredentialPurpose, { group: ConfigGroup; variable: string }> = {
+  "anthropic-api-key": { group: "credentials", variable: "CREDENTIAL_ENCRYPTION_KEY" },
+  "linkedin-access-token": { group: "linkedinTokens", variable: "LINKEDIN_TOKEN_KEY" },
+  "linkedin-client-secret": { group: "linkedinTokens", variable: "LINKEDIN_TOKEN_KEY" },
+};
+
 function encryptionKey(purpose: CredentialPurpose): Buffer {
-  const [group, variable] = purpose === "anthropic-api-key"
-    ? ["credentials" as const, "CREDENTIAL_ENCRYPTION_KEY"]
-    : ["linkedinTokens" as const, "LINKEDIN_TOKEN_KEY"];
+  const { group, variable } = KEY_BY_PURPOSE[purpose];
   const raw = readServerConfig(group)[variable];
   const decoded = Buffer.from(raw, "base64");
   if (decoded.length !== 32) throw new Error(`${variable} must decode to 32 bytes`);
