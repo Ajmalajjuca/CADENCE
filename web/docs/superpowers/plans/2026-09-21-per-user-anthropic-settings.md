@@ -1005,4 +1005,4 @@ git commit -m "docs: document per-user Anthropic credential operations"
 
 **Outstanding**
 
-- Task 8 Step 6, the live two-user release check, needs real Anthropic keys and a running web + worker. It is the only item in this plan that has not been executed.
+- Task 8 Step 6, the live two-user release check, needs real Anthropic keys and a running web + worker. It is the only item in this plan that has not been executed. Step-by-step commands, SQL inspection queries and expected results are in `docs/live-release-check.md`.
