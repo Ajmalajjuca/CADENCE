@@ -39,14 +39,15 @@ select is(has_table_privilege('authenticated','public.ai_validation_limits','sel
 select is(has_table_privilege('authenticated','public.linkedin_app_credentials','select'), false,
   'authenticated cannot read encrypted LinkedIn app credentials');
 select is(
-  (select count(*)::int from information_schema.columns
-   where table_schema='public' and table_name='linkedin_connections'
-     and column_name in ('client_id','scopes')),
+  (select count(*)::int from pg_catalog.pg_attribute
+   where attrelid='public.linkedin_connections'::regclass
+     and attname in ('client_id','scopes') and not attisdropped),
   2,
   'connections record which application issued the token');
 select is(
-  (select count(*)::int from information_schema.columns
-   where table_schema='public' and table_name='oauth_states' and column_name='client_id'),
+  (select count(*)::int from pg_catalog.pg_attribute
+   where attrelid='public.oauth_states'::regclass
+     and attname='client_id' and not attisdropped),
   1,
   'oauth states record the application that began the flow');
 
