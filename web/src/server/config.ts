@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ServerConfigurationError } from "./config-error";
 
 const groups = {
   auth: ["SUPABASE_URL", "SUPABASE_ANON_KEY"],
@@ -34,8 +35,8 @@ export function readServerConfig(group: ConfigGroup): ServerConfig {
     const missing = result.error.issues.map((issue) => issue.path.join(".")).join(", ");
     throw new Error(`Missing or invalid server configuration: ${missing}`);
   }
-  if (process.env.VERCEL && result.data.DATABASE_URL && isSupabaseDirectConnection(result.data.DATABASE_URL)) {
-    throw new Error(
+  if (process.env.VERCEL === "1" && result.data.DATABASE_URL && isSupabaseDirectConnection(result.data.DATABASE_URL)) {
+    throw new ServerConfigurationError(
       "Invalid DATABASE_URL for Vercel: use the Supabase transaction pooler connection string on port 6543 instead of the IPv6-only direct connection",
     );
   }
