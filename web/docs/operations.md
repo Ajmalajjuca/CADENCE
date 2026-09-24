@@ -20,6 +20,14 @@ The curated model catalog lives in `src/server/ai/model-catalog.ts`. Review it a
 
 ## Database and backups
 
+Vercel must use Supabase's **transaction pooler** connection string for
+`DATABASE_URL` (Dashboard → **Connect** → **Transaction pooler**, port 6543,
+with `sslmode=require`). Do not use the direct
+`db.<project-ref>.supabase.co:5432` URL there: Supabase exposes that endpoint
+over IPv6, while Vercel's database connection path is IPv4. The application
+rejects that combination at runtime with an actionable configuration error.
+Long-running migration and backup tools should continue to use the direct URL.
+
 1. Stop or drain workers until no creation run is `queued`, `running`, or `waiting_for_user`.
 2. Back up the Supabase PostgreSQL database and the current encryption keys.
 3. Install `CREDENTIAL_ENCRYPTION_KEY` on both web and worker services.

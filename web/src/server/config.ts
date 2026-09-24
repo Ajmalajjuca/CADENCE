@@ -14,6 +14,17 @@ const groups = {
 export type ConfigGroup = keyof typeof groups;
 export type ServerConfig = Record<string, string>;
 
+function isSupabaseDirectConnection(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.hostname.startsWith("db.")
+      && url.hostname.endsWith(".supabase.co")
+      && (url.port === "5432" || url.port === "");
+  } catch {
+    return false;
+  }
+}
+
 export function readServerConfig(group: ConfigGroup): ServerConfig {
   const keys: readonly string[] = groups[group];
   const shape: Record<string, z.ZodString> = {};
@@ -22,6 +33,11 @@ export function readServerConfig(group: ConfigGroup): ServerConfig {
   if (!result.success) {
     const missing = result.error.issues.map((issue) => issue.path.join(".")).join(", ");
     throw new Error(`Missing or invalid server configuration: ${missing}`);
+  }
+  if (process.env.VERCEL && result.data.DATABASE_URL && isSupabaseDirectConnection(result.data.DATABASE_URL)) {
+    throw new Error(
+      "Invalid DATABASE_URL for Vercel: use the Supabase transaction pooler connection string on port 6543 instead of the IPv6-only direct connection",
+    );
   }
   return result.data;
 }
