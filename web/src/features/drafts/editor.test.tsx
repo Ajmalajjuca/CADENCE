@@ -39,7 +39,7 @@ it("shows a refused revision's own reason without offering Settings for unrelate
   loadedDraft({ ok: false, status: 429, json: async () => ({ error: "Daily creation limit reached. Try again tomorrow." }) });
   render(<DraftEditor draftId="draft-1" />);
   await requestRevision();
-  expect(await screen.findByText("Daily creation limit reached. Try again tomorrow.")).toBeInTheDocument();
+  expect(await screen.findByRole("alert")).toHaveTextContent("Daily creation limit reached. Try again tomorrow.");
   expect(screen.queryByRole("link", { name: "Open Settings" })).not.toBeInTheDocument();
 });
 

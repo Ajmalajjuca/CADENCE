@@ -35,17 +35,21 @@ export function Field({
   label,
   hint,
   error,
+  htmlFor,
   className = "",
   children,
 }: {
   label: ReactNode;
   hint?: ReactNode;
   error?: ReactNode;
+  htmlFor?: string;
   className?: string;
   children: ReactNode;
 }) {
   return <div className={classes("field", className)}>
-    <div className="field-label">{label}</div>
+    {htmlFor
+      ? <label htmlFor={htmlFor} className="field-label">{label}</label>
+      : <div className="field-label">{label}</div>}
     {hint && <p className="field-hint">{hint}</p>}
     <div className="field-control">{children}</div>
     {error && <p className="field-error">{error}</p>}

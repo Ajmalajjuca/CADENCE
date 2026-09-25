@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { Button, Callout, Field } from "../../components/ui";
 
 export default function SignInPage() {
   const [email, setEmail] = useState("");
@@ -21,14 +22,18 @@ export default function SignInPage() {
     finally { setLoading(false); }
   }
 
-  return <main className="mx-auto max-w-md px-6 py-20">
-    <h1 className="text-3xl font-semibold">Sign in to Cadence</h1>
-    <p className="mt-3 text-slate-600">Use the email address that received your invitation.</p>
-    <form onSubmit={submit} className="mt-8 space-y-4">
-      <label className="block text-sm font-medium" htmlFor="email">Email address</label>
-      <input id="email" type="email" required autoComplete="email" value={email} onChange={event => setEmail(event.target.value)} className="w-full rounded-lg border p-3" />
-      <button disabled={loading} className="rounded-lg bg-slate-900 px-5 py-3 text-white disabled:opacity-50">{loading ? "Sending…" : "Send sign-in link"}</button>
+  return <main className="page-container page-container-narrow">
+    <header className="page-heading">
+      <p className="eyebrow">Welcome back</p>
+      <h1 className="display-heading">Sign in to Cadence</h1>
+      <p className="page-intro">Use the email address that received your invitation.</p>
+    </header>
+    <form onSubmit={submit} className="surface-card mt-8 space-y-5 p-6 sm:p-8">
+      <Field label="Email address" htmlFor="email">
+        <input id="email" type="email" required autoComplete="email" value={email} onChange={event => setEmail(event.target.value)} />
+      </Field>
+      <Button type="submit" disabled={loading}>{loading ? "Sending…" : "Send sign-in link"}</Button>
     </form>
-    <p role="status" className="mt-5">{message}</p>
+    {message && <Callout role="status" tone="neutral" className="mt-5">{message}</Callout>}
   </main>;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { Button, Callout, Field, linkButtonClass, StatusBadge } from "../../components/ui";
 
 type ModelOption = {
   id: string;
@@ -68,7 +69,7 @@ export function SettingsPage() {
           linkedinResponse.json() as Promise<LinkedInConnection>,
         ]);
         if (!active) return;
-        const fallback = available.find(model => model.recommended)?.id ?? available[0]?.id ?? "";
+        const fallback = available.find((model) => model.recommended)?.id ?? available[0]?.id ?? "";
         setModels(available);
         setSettings(saved);
         setLinkedin(connection);
@@ -120,49 +121,79 @@ export function SettingsPage() {
   }
 
   const configured = settings && settings.status !== "not_configured";
-  const availableFor = (role: "research" | "writing") => models.filter(model => model.roles.includes(role));
+  const availableFor = (role: "research" | "writing") => models.filter((model) => model.roles.includes(role));
 
-  return <main className="mx-auto max-w-3xl px-6 py-12">
-    <p className="text-sm font-semibold uppercase tracking-widest text-slate-500">Account</p>
-    <h1 className="mt-2 text-4xl font-semibold">Settings</h1>
-    <p className="mt-3 text-slate-600">Manage the services Cadence uses for your content and publishing.</p>
-    {loadingError && <p role="alert" className="mt-6 rounded-lg bg-red-50 p-4 text-red-700">{loadingError}</p>}
+  return <main className="page-container page-container-narrow">
+    <header className="page-heading">
+      <p className="eyebrow">Account</p>
+      <h1 className="display-heading">Settings</h1>
+      <p className="page-intro">Manage the services Cadence uses for your content and publishing.</p>
+    </header>
+    {loadingError && <Callout tone="danger" className="mt-6">{loadingError}</Callout>}
 
-    <section className="mt-8 rounded-2xl border bg-white p-6">
+    <section className="surface-card mt-8 p-6 sm:p-8" aria-labelledby="claude-settings">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div><h2 className="text-xl font-semibold">Claude AI</h2><p className="mt-1 text-sm text-slate-600">Use your own Anthropic API key for research and writing.</p></div>
-        {settings && <span className={`rounded-full px-3 py-1 text-sm font-medium ${settings.status === "valid" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-900"}`}>{settings.status === "valid" ? "Configured" : settings.status === "not_configured" ? "Setup required" : "Revalidation required"}</span>}
+        <div>
+          <h2 id="claude-settings" className="text-2xl font-semibold">Claude AI</h2>
+          <p className="mt-1 text-sm text-[var(--muted)]">Use your own Anthropic API key for research and writing.</p>
+        </div>
+        {settings && <StatusBadge tone={settings.status === "valid" ? "success" : "waiting"}>
+          {settings.status === "valid" ? "Configured" : settings.status === "not_configured" ? "Setup required" : "Revalidation required"}
+        </StatusBadge>}
       </div>
 
-      {!settings && !loadingError && <p role="status" className="mt-5 text-slate-600">Loading Claude settings…</p>}
+      {!settings && !loadingError && <p role="status" className="mt-5 text-[var(--muted)]">Loading Claude settings…</p>}
 
       {configured && !editMode && <div className="mt-6">
-        <dl className="grid gap-4 sm:grid-cols-2">
-          <div><dt className="text-sm text-slate-500">Saved API key</dt><dd className="mt-1 font-medium">•••• {settings.keySuffix}</dd></div>
-          <div><dt className="text-sm text-slate-500">Research model</dt><dd className="mt-1 font-medium">{models.find(model => model.id === settings.researchModel)?.label ?? settings.researchModel}</dd></div>
-          <div><dt className="text-sm text-slate-500">Writing model</dt><dd className="mt-1 font-medium">{models.find(model => model.id === settings.writingModel)?.label ?? settings.writingModel}</dd></div>
-          {settings.validatedAt && <div><dt className="text-sm text-slate-500">Last validated</dt><dd className="mt-1 font-medium">{new Date(settings.validatedAt).toLocaleString()}</dd></div>}
+        <dl className="grid gap-5 sm:grid-cols-2">
+          <div><dt className="text-sm text-[var(--muted)]">Saved API key</dt><dd className="mt-1 font-semibold">•••• {settings.keySuffix}</dd></div>
+          <div><dt className="text-sm text-[var(--muted)]">Research model</dt><dd className="mt-1 font-semibold">{models.find((model) => model.id === settings.researchModel)?.label ?? settings.researchModel}</dd></div>
+          <div><dt className="text-sm text-[var(--muted)]">Writing model</dt><dd className="mt-1 font-semibold">{models.find((model) => model.id === settings.writingModel)?.label ?? settings.writingModel}</dd></div>
+          {settings.validatedAt && <div><dt className="text-sm text-[var(--muted)]">Last validated</dt><dd className="mt-1 font-semibold">{new Date(settings.validatedAt).toLocaleString()}</dd></div>}
         </dl>
-        {settings.status !== "valid" && <p className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Your key needs to be validated again before creating content.</p>}
-        <div className="mt-5 flex flex-wrap gap-3"><button type="button" onClick={() => setEditMode("models")} className="rounded-lg border px-4 py-2">Change models</button><button type="button" onClick={() => setEditMode("key")} className="rounded-lg border px-4 py-2">Replace key</button><button type="button" disabled={busy} onClick={() => void remove()} className="rounded-lg px-4 py-2 text-red-700 disabled:opacity-50">Remove key</button></div>
+        {settings.status !== "valid" && <Callout tone="waiting" className="mt-4">Your key needs to be validated again before creating content.</Callout>}
+        <div className="mt-5 flex flex-wrap gap-3">
+          <Button variant="secondary" onClick={() => setEditMode("models")}>Change models</Button>
+          <Button variant="secondary" onClick={() => setEditMode("key")}>Replace key</Button>
+          <Button variant="quiet" disabled={busy} onClick={() => void remove()} className="text-[var(--danger)]">Remove key</Button>
+        </div>
       </div>}
 
       {settings && (!configured || editMode) && <form onSubmit={save} className="mt-6 space-y-5">
-        {editMode === "key" && <label className="block"><span className="font-medium">Anthropic API key</span><input aria-label="Anthropic API key" type="password" autoComplete="off" value={apiKey} required onChange={event => setApiKey(event.target.value)} placeholder="sk-ant-…" className="mt-2 w-full rounded-lg border px-3 py-3" /><span className="mt-1 block text-xs text-slate-500">Cadence encrypts the key before storing it. The full key is never shown again.</span></label>}
-        <label className="block"><span className="font-medium">Research model</span><select aria-label="Research model" value={researchModel} onChange={event => setResearchModel(event.target.value)} className="mt-2 w-full rounded-lg border px-3 py-3">{availableFor("research").map(model => <option key={model.id} value={model.id}>{model.label}{model.recommended ? " — Recommended" : ""}</option>)}</select></label>
-        <label className="block"><span className="font-medium">Writing model</span><select aria-label="Writing model" value={writingModel} onChange={event => setWritingModel(event.target.value)} className="mt-2 w-full rounded-lg border px-3 py-3">{availableFor("writing").map(model => <option key={model.id} value={model.id}>{model.label}{model.recommended ? " — Recommended" : ""}</option>)}</select></label>
-        <p className="text-sm text-slate-600">Saving validates your key and access to both selected models without generating content.</p>
-        {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-red-700">{error}</p>}
-        <div className="flex gap-3"><button type="submit" disabled={busy || !researchModel || !writingModel} className="rounded-lg bg-slate-900 px-5 py-3 text-white disabled:opacity-50">{busy ? "Validating…" : "Validate and save"}</button>{configured && <button type="button" disabled={busy} onClick={() => { setEditMode(null); setApiKey(""); setError(""); }} className="rounded-lg border px-5 py-3">Cancel</button>}</div>
+        {editMode === "key" && <Field label="Anthropic API key" htmlFor="anthropic-key" hint="Cadence encrypts the key before storing it. The full key is never shown again.">
+          <input id="anthropic-key" aria-label="Anthropic API key" type="password" autoComplete="off" value={apiKey} required onChange={(event) => setApiKey(event.target.value)} placeholder="sk-ant-…" />
+        </Field>}
+        <Field label="Research model" htmlFor="research-model">
+          <select id="research-model" aria-label="Research model" value={researchModel} onChange={(event) => setResearchModel(event.target.value)}>
+            {availableFor("research").map((model) => <option key={model.id} value={model.id}>{model.label}{model.recommended ? " — Recommended" : ""}</option>)}
+          </select>
+        </Field>
+        <Field label="Writing model" htmlFor="writing-model">
+          <select id="writing-model" aria-label="Writing model" value={writingModel} onChange={(event) => setWritingModel(event.target.value)}>
+            {availableFor("writing").map((model) => <option key={model.id} value={model.id}>{model.label}{model.recommended ? " — Recommended" : ""}</option>)}
+          </select>
+        </Field>
+        <p className="text-sm text-[var(--muted)]">Saving validates your key and access to both selected models without generating content.</p>
+        {error && <Callout tone="danger">{error}</Callout>}
+        <div className="flex flex-wrap gap-3">
+          <Button type="submit" disabled={busy || !researchModel || !writingModel}>{busy ? "Validating…" : "Validate and save"}</Button>
+          {configured && <Button variant="secondary" disabled={busy} onClick={() => { setEditMode(null); setApiKey(""); setError(""); }}>Cancel</Button>}
+        </div>
       </form>}
     </section>
 
-    <section className="mt-6 rounded-2xl border bg-white p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-semibold">LinkedIn</h2><p className="mt-1 text-sm text-slate-600">Cadence uses its central LinkedIn application to connect your account.</p></div>{linkedin && <span className={`rounded-full px-3 py-1 text-sm font-medium ${linkedin.status === "connected" ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-700"}`}>{linkedin.status === "connected" ? "Connected" : "Not connected"}</span>}</div>
-      {!linkedin && !loadingError && <p role="status" className="mt-5 text-slate-600">Loading LinkedIn status…</p>}
-      {linkedin?.expiresAt && <p className="mt-4 text-sm text-slate-600">Access expires {new Date(linkedin.expiresAt).toLocaleDateString()}.</p>}
-      <a href="/api/linkedin/connect" className="mt-5 inline-block rounded-lg bg-slate-900 px-5 py-3 text-white">{linkedin?.status === "connected" ? "Reconnect LinkedIn" : "Connect LinkedIn"}</a>
-      <p className="mt-4 text-sm text-slate-600">Cadence publishes only after you approve an exact draft version and click Publish now.</p>
+    <section className="surface-card mt-6 p-6 sm:p-8" aria-labelledby="linkedin-settings">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 id="linkedin-settings" className="text-2xl font-semibold">LinkedIn</h2>
+          <p className="mt-1 text-sm text-[var(--muted)]">Connect your own LinkedIn account through Cadence’s central application.</p>
+        </div>
+        {linkedin && <StatusBadge tone={linkedin.status === "connected" ? "success" : "neutral"}>{linkedin.status === "connected" ? "Connected" : "Not connected"}</StatusBadge>}
+      </div>
+      {!linkedin && !loadingError && <p role="status" className="mt-5 text-[var(--muted)]">Loading LinkedIn status…</p>}
+      {linkedin?.expiresAt && <p className="mt-4 text-sm text-[var(--muted)]">Access expires {new Date(linkedin.expiresAt).toLocaleDateString()}.</p>}
+      <a href="/api/linkedin/connect" className={linkButtonClass.primary + " mt-5"}>{linkedin?.status === "connected" ? "Reconnect LinkedIn" : "Connect LinkedIn"}</a>
+      <p className="mt-4 text-sm leading-6 text-[var(--muted)]">Cadence publishes only after you approve an exact draft version and click Publish now.</p>
     </section>
   </main>;
 }

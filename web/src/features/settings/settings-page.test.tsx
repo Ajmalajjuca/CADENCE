@@ -61,3 +61,10 @@ it("shows a safe validation error returned by the API", async () => {
   await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Anthropic rejected this API key"));
   expect(screen.getByRole("alert")).not.toHaveTextContent("sk-ant-invalid");
 });
+
+it("keeps settings load failures in an alert", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response({}, false, 500)));
+  render(<SettingsPage />);
+
+  expect(await screen.findByRole("alert")).toHaveTextContent("Could not load settings");
+});

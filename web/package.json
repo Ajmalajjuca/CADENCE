@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest",
+    "test:e2e": "playwright test",
     "worker": "tsx --env-file=.env.local src/worker/main.ts",
     "db:test": "supabase test db",
     "import:legacy": "tsx scripts/import-cadence.ts"
