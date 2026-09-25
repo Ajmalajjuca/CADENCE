@@ -5,7 +5,7 @@ Cadence is an invitation-only LinkedIn content workspace. It interviews each use
 ## What is included
 
 - Invitation-only Supabase Auth with magic-link sign-in
-- Resumable six-step voice and profile interview
+- A resumable guided voice interview with focused profile editing
 - Saved ideas and a searchable content Library
 - Quick and guided creation paths with sourced research and hook choices
 - Durable PostgreSQL worker jobs with stage recovery
@@ -16,6 +16,11 @@ Cadence is an invitation-only LinkedIn content workspace. It interviews each use
 - JSON and Markdown export, plus a preview-first importer for this repository's legacy Markdown
 
 Scheduling, analytics-driven strategy updates, team roles, public signup, media posts, and Notion synchronization remain later projects.
+
+The essential interview captures identity, audience, goals, and content topics.
+Writing samples, detailed preferences, and real stories can be added later from
+the Voice & Profile overview. Cadence uses only story details the user provides
+and never invents personal experiences.
 
 ## Local setup
 

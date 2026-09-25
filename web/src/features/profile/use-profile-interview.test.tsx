@@ -128,14 +128,14 @@ it("ignores a second save while the first PATCH is pending", async () => {
 });
 
 it("aborts the initial request when unmounted", async () => {
-  let signal: AbortSignal | null = null;
+  const requestState: { signal?: AbortSignal } = {};
   vi.stubGlobal("fetch", vi.fn((_url: string, init?: RequestInit) => {
-    signal = init?.signal ?? null;
+    requestState.signal = init?.signal ?? undefined;
     return new Promise(() => undefined);
   }));
   const view = render(<Probe />);
   await act(async () => Promise.resolve());
-  expect(signal?.aborted).toBe(false);
+  expect(requestState.signal?.aborted).toBe(false);
   view.unmount();
-  expect(signal?.aborted).toBe(true);
+  expect(requestState.signal?.aborted).toBe(true);
 });
