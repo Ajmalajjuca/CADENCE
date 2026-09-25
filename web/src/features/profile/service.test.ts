@@ -20,3 +20,22 @@ it("rejects an empty writing sample and preserves multiline text", () => {
   if (result.step !== 4) throw new Error("Expected writing samples step");
   expect(result.samples[0]).toBe("Line one\nLine two");
 });
+
+it("accepts deliberately empty optional profile sections", () => {
+  expect(onboardingInput.safeParse({ step: 4, samples: [], voiceTraits: [] }).success).toBe(true);
+  expect(onboardingInput.safeParse({
+    step: 5,
+    rules: { lengthPreference: "", casing: "", hashtags: "", emoji: "", cta: "", bannedTerms: [], notes: "" },
+  }).success).toBe(true);
+  expect(onboardingInput.safeParse({ step: 6, stories: [] }).success).toBe(true);
+});
+
+it("rejects blank list items and more than four pillars", () => {
+  expect(onboardingInput.safeParse({ step: 3, pillars: ["AI", "", "Teams"] }).success).toBe(false);
+  expect(onboardingInput.safeParse({ step: 3, pillars: ["1", "2", "3", "4", "5"] }).success).toBe(false);
+  expect(onboardingInput.safeParse({ step: 4, samples: [], voiceTraits: [" "] }).success).toBe(false);
+  expect(onboardingInput.safeParse({
+    step: 5,
+    rules: { lengthPreference: "", casing: "", hashtags: "", emoji: "", cta: "", bannedTerms: [" "], notes: "" },
+  }).success).toBe(false);
+});
