@@ -18,6 +18,7 @@ export interface CreationRun {
   stages: Record<string, unknown>;
   prompt_version: string;
   model: string;
+  usage: Record<string, unknown>;
   research_model: string | null;
   writing_model: string | null;
   ai_settings_revision: number | null;
@@ -29,6 +30,12 @@ export interface CreationRun {
   created_at: Date;
   updated_at: Date;
 }
+
+export type CreationRunJson = Omit<CreationRun, "created_at" | "updated_at" | "lease_until"> & {
+  created_at: string;
+  updated_at: string;
+  lease_until: string | null;
+};
 
 export interface UserAiSettingsRow {
   owner_id: string;
