@@ -50,7 +50,7 @@ it("does not treat a disabled Vercel marker as a deployment", () => {
   expect(readServerConfig("database").DATABASE_URL).toContain("db.project-ref.supabase.co");
 });
 
-it("logs a safe Vercel database diagnostic while keeping the client response generic", async () => {
+it("returns a safe service-unavailable response for invalid server configuration", async () => {
   vi.stubEnv("VERCEL", "1");
   vi.stubEnv("DATABASE_URL", "postgresql://postgres:secret@db.project-ref.supabase.co:5432/postgres");
   const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
@@ -64,6 +64,19 @@ it("logs a safe Vercel database diagnostic while keeping the client response gen
   const response = errorResponse(error);
 
   expect(log).toHaveBeenCalledWith(expect.stringMatching(/DATABASE_URL.*transaction pooler.*6543/i));
+  expect(response.status).toBe(503);
+  expect(await response.json()).toEqual({
+    error: "Service temporarily unavailable",
+    code: "SERVER_CONFIGURATION_ERROR",
+  });
+});
+
+it("does not leak details from unexpected server errors", async () => {
+  const response = errorResponse(new Error(
+    "connect failed for postgresql://postgres:database-password@db.project-ref.supabase.co:5432/postgres",
+  ));
+
+  expect(response.status).toBe(500);
   expect(await response.json()).toEqual({ error: "Unexpected server error" });
 });
 
