@@ -25,3 +25,10 @@ it("stores stable AI failures without raw provider text", () => {
     message: "Generation failed. Try again.",
   });
 });
+
+it.each(["AI_OUTPUT_INCOMPLETE", "AI_OUTPUT_INVALID"] as const)("preserves the safe %s failure", (code) => {
+  expect(toRunFailure(new AiServiceError(code, "Claude returned a safe output error. Retry this stage."))).toEqual({
+    code,
+    message: "Claude returned a safe output error. Retry this stage.",
+  });
+});

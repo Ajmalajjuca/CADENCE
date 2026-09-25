@@ -53,7 +53,17 @@ it("still records a run failure when invalidation fails", async () => {
 
 it("describes a run failure with the stable code and provider request id only", () => {
   const traced = new AiServiceError("AI_PROVIDER_UNAVAILABLE", "Anthropic could not complete the request. Try again shortly.", "req_abc123");
-  expect(describeRunFailure(run("a"), traced)).toBe("Run run-a failed at research: AI_PROVIDER_UNAVAILABLE (provider request req_abc123)");
-  expect(describeRunFailure(run("a"), new AiServiceError("AI_SETTINGS_INVALID", "Your Anthropic API key was rejected."))).toBe("Run run-a failed at research: AI_SETTINGS_INVALID");
-  expect(describeRunFailure(run("a"), new Error("sk-ant-secret leaked into the message"))).toBe("Run run-a failed at research: GENERATION_FAILED");
+  expect(describeRunFailure(run("a"), traced)).toBe("Run run-a failed at research: AI_PROVIDER_UNAVAILABLE [AiServiceError] (provider request req_abc123)");
+  expect(describeRunFailure(run("a"), new AiServiceError("AI_SETTINGS_INVALID", "Your Anthropic API key was rejected."))).toBe("Run run-a failed at research: AI_SETTINGS_INVALID [AiServiceError]");
+  expect(describeRunFailure(run("a"), new Error("sk-ant-secret leaked into the message"))).toBe("Run run-a failed at research: GENERATION_FAILED [Error]");
+});
+
+it("describes invalid output with safe error classes but no raw validation detail", () => {
+  const invalid = new AiServiceError("AI_OUTPUT_INVALID", "Claude returned an invalid response. Retry this stage.");
+  const cause = new Error("raw output contained sk-ant-secret");
+  cause.name = "ZodError";
+  invalid.cause = cause;
+  const description = describeRunFailure(run("a"), invalid);
+  expect(description).toBe("Run run-a failed at research: AI_OUTPUT_INVALID [AiServiceError/ZodError]");
+  expect(description).not.toContain("sk-ant-secret");
 });

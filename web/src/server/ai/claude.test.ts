@@ -1,8 +1,9 @@
 import { expect, it } from "vitest";
 import { z } from "zod";
 import { buildVoicePrompt } from "./prompts";
+import { ideasOutput } from "./schemas";
 import { validateClaims, type DraftResult, type ResearchBrief } from "./types";
-import { buildGenerateParams, CadenceAi, createCadenceAi, toClaudeJsonSchema, type AiTransport } from "./claude";
+import { buildGenerateParams, CadenceAi, createCadenceAi, parseOutput, parseStructuredResponse, toClaudeJsonSchema, type AiTransport } from "./claude";
 
 const voice = { identity: { name: "A", work: "Builder", location: "" }, audience: "Founders", goal: "Trust", pillars: ["AI"], rules: null, voiceTraits: [], samples: [], stories: [], voiceMode: "opinion" as const };
 
@@ -35,6 +36,21 @@ it("keeps hostile search text in user data, separate from system rules", async (
 it("rejects malformed structured Claude output", async () => {
   const transport: AiTransport = { search: async () => ({ summary: "", sources: [] }), generate: async () => ({ nope: true }) };
   await expect(new CadenceAi(transport, "test-research", "test-writing").makeHooks(voice, { topic: "AI", angle: "View", facts: [], sources: [], promptVersion: "v1", model: "test" })).rejects.toThrow();
+});
+
+it.each(["max_tokens", "refusal"])("classifies %s before JSON parsing", (stopReason) => {
+  expect(() => parseStructuredResponse({ stop_reason: stopReason, content: [{ type: "text", text: "{" }] }))
+    .toThrow(expect.objectContaining({ code: "AI_OUTPUT_INCOMPLETE" }));
+});
+
+it("classifies malformed JSON without exposing the response", () => {
+  expect(() => parseStructuredResponse({ stop_reason: "end_turn", content: [{ type: "text", text: "not-json" }] }))
+    .toThrow(expect.objectContaining({ code: "AI_OUTPUT_INVALID" }));
+});
+
+it("classifies domain-schema mismatch", () => {
+  expect(() => parseOutput(ideasOutput, { ideas: [{ title: "" }] }))
+    .toThrow(expect.objectContaining({ code: "AI_OUTPUT_INVALID" }));
 });
 
 it("removes JSON Schema constraints unsupported by Claude while retaining shape", () => {
@@ -95,6 +111,33 @@ it("drops unknown source URLs from researched ideas", async () => {
 
   const [idea] = await new CadenceAi(transport, "test-research", "test-writing").researchIdeas(voice);
   expect(idea.sourceUrls).toEqual(["https://example.com/source"]);
+});
+
+it("uses bounded output budgets for each generation stage", async () => {
+  const seen: Array<{ maxTokens?: number; user: string }> = [];
+  const transport: AiTransport = {
+    search: async () => ({ summary: "Evidence", sources: [] }),
+    generate: async request => {
+      seen.push({ maxTokens: request.maxTokens, user: request.user });
+      if (seen.length === 1) return { ideas: [{ title: "AI", angle: "Practical", pillar: "AI", whyNow: "", format: "standard", sourceUrls: [] }] };
+      if (seen.length === 2) return { topic: "AI", angle: "Practical", facts: [], sourceUrls: [] };
+      if (seen.length === 3) return { hooks: [
+        { type: "direct", text: "Hook one", sourceUrl: null },
+        { type: "question", text: "Hook two", sourceUrl: null },
+        { type: "contrast", text: "Hook three", sourceUrl: null },
+      ] };
+      return { text: "Hook one\n\nBody", claims: [], sourceUrls: [] };
+    },
+  };
+  const ai = new CadenceAi(transport, "test-research", "test-writing");
+  const [idea] = await ai.researchIdeas(voice);
+  const brief = await ai.researchTopic(voice, idea);
+  const [hook] = await ai.makeHooks(voice, brief);
+  const draft = await ai.writeDraft(voice, brief, hook);
+  await ai.editDraft(voice, draft, "Tighten it");
+
+  expect(seen.map(request => request.maxTokens)).toEqual([3200, 2400, 1800, 3000, 3000]);
+  expect(seen[0].user).toContain("Return up to five relevant ideas");
 });
 
 it("refuses to build a Claude client without a key and off-catalog models", () => {

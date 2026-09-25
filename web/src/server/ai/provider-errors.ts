@@ -7,12 +7,15 @@ export type AiErrorCode =
   | "AI_MODEL_UNAVAILABLE"
   | "AI_RATE_LIMITED"
   | "AI_CREDIT_REQUIRED"
-  | "AI_PROVIDER_UNAVAILABLE";
+  | "AI_PROVIDER_UNAVAILABLE"
+  | "AI_OUTPUT_INCOMPLETE"
+  | "AI_OUTPUT_INVALID";
 
 function statusFor(code: AiErrorCode): number {
   if (code === "AI_RATE_LIMITED") return 429;
   if (code === "AI_CREDIT_REQUIRED") return 402;
   if (code === "AI_PROVIDER_UNAVAILABLE") return 503;
+  if (code === "AI_OUTPUT_INCOMPLETE" || code === "AI_OUTPUT_INVALID") return 502;
   if (code === "AI_SETTINGS_REQUIRED" || code === "AI_SETTINGS_INVALID") return 409;
   return 400;
 }

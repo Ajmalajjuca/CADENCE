@@ -33,3 +33,7 @@ it("returns provider errors to the UI with their stable code", async () => {
 it("retains the SDK request ID for safe server correlation", () => {
   expect(mapAnthropicError({ status: 500, requestID: "req_123" })).toMatchObject({ providerRequestId: "req_123" });
 });
+
+it.each(["AI_OUTPUT_INCOMPLETE", "AI_OUTPUT_INVALID"] as const)("maps %s to a safe bad-gateway status", (code) => {
+  expect(new AiServiceError(code, "Safe output error")).toMatchObject({ code, status: 502 });
+});

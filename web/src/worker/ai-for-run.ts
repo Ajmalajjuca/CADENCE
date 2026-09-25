@@ -61,5 +61,8 @@ export function describeRunFailure(run: CreationRun, error: unknown): string {
   const code = error instanceof AiServiceError ? error.code : "GENERATION_FAILED";
   const requestId = error instanceof AiServiceError ? error.providerRequestId : undefined;
   const trace = requestId ? ` (provider request ${requestId})` : "";
-  return `Run ${run.id} failed at ${run.stage}: ${code}${trace}`;
+  const errorName = error instanceof Error ? error.name : "UnknownError";
+  const causeName = error instanceof Error && error.cause instanceof Error ? error.cause.name : undefined;
+  const classes = causeName ? `${errorName}/${causeName}` : errorName;
+  return `Run ${run.id} failed at ${run.stage}: ${code} [${classes}]${trace}`;
 }
