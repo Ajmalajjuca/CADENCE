@@ -1,4 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
+import nextEnv from "@next/env";
+
+const { loadEnvConfig } = nextEnv;
+loadEnvConfig(process.cwd());
 
 export default defineConfig({
   testDir: "./e2e",

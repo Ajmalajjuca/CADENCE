@@ -37,6 +37,25 @@ npm run worker
 
 Disable public signup in Supabase and invite users from the dashboard. See [docs/auth-setup.md](docs/auth-setup.md) and [docs/operations.md](docs/operations.md).
 
+## Web and worker deployment
+
+The browser talks only to the Next.js application on Vercel. Supabase is the
+durable job queue, and the separately deployed Render worker claims queued
+work from the same database. Render does not need the Vercel URL.
+
+Set the private **WORKER_URL** environment variable in Vercel production,
+preview, and development to **https://cadence-3iwy.onrender.com**.
+
+Cadence calls only the worker's **/health** path from server code after work is
+queued; the Render URL is never sent to the browser. The request wakes a
+sleeping free Render service while Supabase keeps the job safe. The GitHub
+keep-awake workflow is best effort only and is not required for correctness.
+
+On Vercel, **DATABASE_URL** must be Supabase's transaction pooler connection
+string on port **6543** with **sslmode=require**. Do not use the IPv6-only
+direct database hostname there. Keep the direct connection for migrations and
+local tools.
+
 ## Tests
 
 ```bash
@@ -44,7 +63,7 @@ npm test -- --run
 npm run db:test
 npm run lint
 npm run build
-npx playwright test
+npm run test:e2e
 ```
 
 Integration tests run when `TEST_DATABASE_URL=1` and `DATABASE_URL` points at an isolated migrated database. They create temporary users and remove them afterward.

@@ -118,6 +118,8 @@ export function RunProgress({ runId }: { runId: string }) {
   const ideas = stageIdeas(run.stages.idea);
   const hooks = stageHooks(run.stages.hooks);
   const research = isRecord(run.stages.research) ? run.stages.research as Brief : null;
+  const selectedIdea = isRecord(run.selected_idea) ? run.selected_idea : null;
+  const selectedHook = isRecord(run.selected_hook) ? run.selected_hook : null;
 
   return <main className="page-container page-container-narrow">
     <Link href="/create" className="inline-flex min-h-11 items-center text-sm font-semibold text-[var(--muted)] underline decoration-[var(--border)] underline-offset-4 hover:text-[var(--ink)]">
@@ -144,10 +146,10 @@ export function RunProgress({ runId }: { runId: string }) {
       <Link href={"/posts/" + view.action.draftId} className={linkButtonClass.primary}>Review your draft</Link>
     </div>}
 
-    {run.selected_idea && isRecord(run.selected_idea) && <section className="surface-card mt-7 p-6" aria-labelledby="selected-idea-heading">
+    {selectedIdea && <section className="surface-card mt-7 p-6" aria-labelledby="selected-idea-heading">
       <p className="eyebrow">Your direction</p>
-      <h2 id="selected-idea-heading" className="mt-2 text-2xl font-semibold">{String(run.selected_idea.title ?? "Selected idea")}</h2>
-      {run.selected_idea.angle && <p className="mt-2 text-[var(--muted)]">{String(run.selected_idea.angle)}</p>}
+      <h2 id="selected-idea-heading" className="mt-2 text-2xl font-semibold">{String(selectedIdea.title ?? "Selected idea")}</h2>
+      {Boolean(selectedIdea.angle) && <p className="mt-2 text-[var(--muted)]">{String(selectedIdea.angle)}</p>}
     </section>}
 
     {research && <ResearchPanel brief={research} />}
@@ -157,9 +159,9 @@ export function RunProgress({ runId }: { runId: string }) {
     {run.status === "waiting_for_user" && run.stage === "hooks" && hooks.length > 0
       && <HookPicker hooks={hooks} onChoose={(id) => void choose("hook", id)} busy={busy} />}
 
-    {run.selected_hook && isRecord(run.selected_hook) && <section className="surface-card mt-6 p-6">
+    {selectedHook && <section className="surface-card mt-6 p-6">
       <p className="eyebrow">Selected hook</p>
-      <p className="mt-3 whitespace-pre-wrap text-lg font-semibold">{String(run.selected_hook.text ?? "")}</p>
+      <p className="mt-3 whitespace-pre-wrap text-lg font-semibold">{String(selectedHook.text ?? "")}</p>
     </section>}
 
     {loadError && <Callout tone="danger" className="mt-5">
