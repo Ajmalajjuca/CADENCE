@@ -17,10 +17,10 @@ export function useCreationRun(runId: string): CreationRunState {
   const [run, setRun] = useState<CreationRunJson | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [pollTick, setPollTick] = useState(0);
   const mounted = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const request = useRef<AbortController | null>(null);
-  const loadRef = useRef<() => Promise<void>>(async () => undefined);
 
   const clearTimer = useCallback(() => {
     if (timer.current !== null) {
@@ -34,7 +34,6 @@ export function useCreationRun(runId: string): CreationRunState {
     request.current?.abort();
     const controller = new AbortController();
     request.current = controller;
-    if (mounted.current) setLoading(true);
 
     try {
       const response = await fetch(`/api/creation-runs/${runId}`, {
@@ -50,7 +49,7 @@ export function useCreationRun(runId: string): CreationRunState {
       setLoading(false);
       const shouldPoll = data.status === "queued" || data.status === "running";
       if (shouldPoll && document.visibilityState === "visible") {
-        timer.current = setTimeout(() => void loadRef.current(), POLL_INTERVAL_MS);
+        timer.current = setTimeout(() => setPollTick((value) => value + 1), POLL_INTERVAL_MS);
       }
     } catch (loadError) {
       if (!mounted.current || request.current !== controller) return;
@@ -62,26 +61,31 @@ export function useCreationRun(runId: string): CreationRunState {
     }
   }, [clearTimer, runId]);
 
-  loadRef.current = load;
-
   useEffect(() => {
     mounted.current = true;
-    void loadRef.current();
-
-    function handleVisibilityChange() {
-      clearTimer();
-      if (document.visibilityState === "visible") void loadRef.current();
-    }
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
       mounted.current = false;
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
       clearTimer();
       request.current?.abort();
       request.current = null;
     };
-  }, [clearTimer, load]);
+  }, [clearTimer]);
+
+  useEffect(() => {
+    let cancelled = false;
+    queueMicrotask(() => { if (!cancelled) void load(); });
+    return () => { cancelled = true; };
+  }, [load, pollTick]);
+
+  useEffect(() => {
+    function handleVisibilityChange() {
+      clearTimer();
+      if (document.visibilityState === "visible") setPollTick((value) => value + 1);
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [clearTimer]);
 
   return { run, loading, error, refresh: load };
 }

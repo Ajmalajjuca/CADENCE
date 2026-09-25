@@ -107,7 +107,7 @@ it("pauses while hidden and refreshes immediately when visible", async () => {
   expect(fetchMock).toHaveBeenCalledTimes(3);
 });
 
-it("aborts an in-flight request on unmount", () => {
+it("aborts an in-flight request on unmount", async () => {
   let signal: AbortSignal | undefined;
   const fetchMock = vi.fn((_url: string, init?: RequestInit) => {
     signal = init?.signal ?? undefined;
@@ -116,6 +116,7 @@ it("aborts an in-flight request on unmount", () => {
   vi.stubGlobal("fetch", fetchMock);
 
   const view = render(<Probe />);
+  await settle();
   expect(signal?.aborted).toBe(false);
   view.unmount();
   expect(signal?.aborted).toBe(true);
