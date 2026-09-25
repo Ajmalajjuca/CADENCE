@@ -10,6 +10,7 @@ const groups = {
   linkedinTokens: ["LINKEDIN_TOKEN_KEY"],
   linkedin: ["LINKEDIN_CLIENT_ID", "LINKEDIN_CLIENT_SECRET", "LINKEDIN_REDIRECT_URI", "LINKEDIN_TOKEN_KEY", "APP_URL", "LINKEDIN_VERSION"],
   worker: ["DATABASE_URL", "CREDENTIAL_ENCRYPTION_KEY"],
+  workerWake: ["WORKER_URL"],
 } as const;
 
 export type ConfigGroup = keyof typeof groups;
@@ -26,6 +27,16 @@ function isSupabaseDirectConnection(value: string): boolean {
   }
 }
 
+function isValidWorkerUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    const local = url.hostname === "localhost" || url.hostname === "127.0.0.1";
+    return !url.username && !url.password && (url.protocol === "https:" || (url.protocol === "http:" && local));
+  } catch {
+    return false;
+  }
+}
+
 export function readServerConfig(group: ConfigGroup): ServerConfig {
   const keys: readonly string[] = groups[group];
   const shape: Record<string, z.ZodString> = {};
@@ -34,6 +45,9 @@ export function readServerConfig(group: ConfigGroup): ServerConfig {
   if (!result.success) {
     const missing = result.error.issues.map((issue) => issue.path.join(".")).join(", ");
     throw new Error(`Missing or invalid server configuration: ${missing}`);
+  }
+  if (group === "workerWake" && !isValidWorkerUrl(result.data.WORKER_URL)) {
+    throw new ServerConfigurationError("Missing or invalid server configuration: WORKER_URL");
   }
   if (process.env.VERCEL === "1" && result.data.DATABASE_URL && isSupabaseDirectConnection(result.data.DATABASE_URL)) {
     throw new ServerConfigurationError(

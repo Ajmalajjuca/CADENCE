@@ -6,6 +6,7 @@ import { readServerConfig } from "./config";
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 it("requires the credential key for worker mode without requiring a global Anthropic key", () => {
@@ -84,4 +85,21 @@ it("requires only the token key for LinkedIn encryption and no central applicati
   vi.stubEnv("LINKEDIN_TOKEN_KEY", randomBytes(32).toString("base64"));
   expect(readServerConfig("linkedinTokens").LINKEDIN_TOKEN_KEY).toHaveLength(44);
   expect(Object.keys(readServerConfig("linkedinTokens"))).toEqual(["LINKEDIN_TOKEN_KEY"]);
+});
+
+it("requires an HTTPS worker URL outside local development", () => {
+  vi.stubEnv("WORKER_URL", "http://cadence.example.com/private-path?token=secret");
+  expect(() => readServerConfig("workerWake")).toThrow(/WORKER_URL/);
+  try { readServerConfig("workerWake"); }
+  catch (error) { expect(String(error)).not.toContain("token=secret"); }
+});
+
+it.each(["http://localhost:10000", "http://127.0.0.1:10000"])("accepts local worker URL %s", (url) => {
+  vi.stubEnv("WORKER_URL", url);
+  expect(readServerConfig("workerWake").WORKER_URL).toBe(url);
+});
+
+it("rejects credentials embedded in the worker URL", () => {
+  vi.stubEnv("WORKER_URL", "https://user:secret@cadence-worker.onrender.com");
+  expect(() => readServerConfig("workerWake")).toThrow(/WORKER_URL/);
 });
