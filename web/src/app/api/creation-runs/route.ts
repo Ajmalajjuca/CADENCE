@@ -3,6 +3,7 @@ import { requireUser } from "../../../server/auth/require-user";
 import { errorResponse } from "../../../server/auth/http-error";
 import { getPool } from "../../../server/db/client";
 import { startCreationRun } from "../../../server/jobs/creation-service";
+import { scheduleWorkerWake } from "../../../server/worker/schedule-wake";
 import type { CreationRun } from "../../../server/db/types";
 
 export async function GET() {
@@ -16,7 +17,9 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const user = await requireUser();
-    return Response.json(await startCreationRun(user.id, await request.json()), { status: 201 });
+    const run = await startCreationRun(user.id, await request.json());
+    scheduleWorkerWake();
+    return Response.json(run, { status: 201 });
   } catch (error) {
     if (error instanceof ZodError) return Response.json({ error: "Choose a path and enter a topic if needed" }, { status: 400 });
     return errorResponse(error);
