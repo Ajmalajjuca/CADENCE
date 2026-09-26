@@ -129,6 +129,10 @@ export function payloadForStep(form: ProfileFormState, step: InterviewStep): Onb
       },
     };
   }
+  const partialStory = form.stories.find((story) =>
+    (story.title.trim() || story.usageNote.trim()) && !story.details.trim(),
+  );
+  if (partialStory) throw new Error("Add details before saving this story.");
   return {
     step,
     stories: form.stories
@@ -158,13 +162,13 @@ export function clearOptionalSection(form: ProfileFormState, step: InterviewStep
 export function firstIncompleteStep(raw: unknown): InterviewStep {
   const data = record(raw);
   const profile = record(data.profile);
-  if (typeof profile.onboarding_step === "number") {
-    return Math.max(1, Math.min(6, profile.onboarding_step + 1)) as InterviewStep;
-  }
   const form = normalizeProfileState(raw);
   if (!form.name.trim() || !form.work.trim()) return 1;
   if (!form.audience.trim() || !form.goal.trim()) return 2;
   if (form.pillars.length === 0) return 3;
+  if (typeof profile.onboarding_step === "number") {
+    return Math.max(1, Math.min(6, profile.onboarding_step + 1)) as InterviewStep;
+  }
   return 4;
 }
 

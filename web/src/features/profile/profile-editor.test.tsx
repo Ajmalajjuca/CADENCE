@@ -62,7 +62,8 @@ it("refreshes summaries after saving one section", async () => {
     .mockResolvedValueOnce(response(fixture))
     .mockResolvedValueOnce(response(fixture))
     .mockResolvedValueOnce(response(updated))
-    .mockResolvedValueOnce(response(updated));
+    .mockResolvedValueOnce(response(updated))
+    .mockResolvedValue(response(updated));
   vi.stubGlobal("fetch", fetchMock);
   render(<ProfileEditor />);
   fireEvent.click(await screen.findByRole("button", { name: "Edit Content topics" }));
@@ -71,6 +72,9 @@ it("refreshes summaries after saving one section", async () => {
 
   await waitFor(() => expect(screen.getByRole("heading", { name: "Your voice profile" })).toBeVisible());
   expect(screen.getByText("1 content topic")).toBeVisible();
+  for (const edit of screen.getAllByRole("button", { name: /^Edit / })) expect(edit).toBeEnabled();
+  fireEvent.click(screen.getByRole("button", { name: "Edit Real stories" }));
+  expect(await screen.findByRole("heading", { name: "Which real experiences may Cadence draw from?" })).toBeVisible();
 });
 
 it("disables cancel while a section save is in flight", async () => {

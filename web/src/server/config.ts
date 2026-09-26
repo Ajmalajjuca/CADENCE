@@ -44,7 +44,9 @@ export function readServerConfig(group: ConfigGroup): ServerConfig {
   const result = z.object(shape).safeParse(process.env);
   if (!result.success) {
     const missing = result.error.issues.map((issue) => issue.path.join(".")).join(", ");
-    throw new Error(`Missing or invalid server configuration: ${missing}`);
+    const message = `Missing or invalid server configuration: ${missing}`;
+    if (group === "workerWake") throw new ServerConfigurationError(message);
+    throw new Error(message);
   }
   if (group === "workerWake" && !isValidWorkerUrl(result.data.WORKER_URL)) {
     throw new ServerConfigurationError("Missing or invalid server configuration: WORKER_URL");

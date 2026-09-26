@@ -2,6 +2,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { randomBytes } from "node:crypto";
 import { errorResponse } from "./auth/http-error";
 import { readServerConfig } from "./config";
+import { ServerConfigurationError } from "./config-error";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -92,6 +93,11 @@ it("requires an HTTPS worker URL outside local development", () => {
   expect(() => readServerConfig("workerWake")).toThrow(/WORKER_URL/);
   try { readServerConfig("workerWake"); }
   catch (error) { expect(String(error)).not.toContain("token=secret"); }
+});
+
+it("categorizes a missing worker URL as server configuration", () => {
+  vi.stubEnv("WORKER_URL", "");
+  expect(() => readServerConfig("workerWake")).toThrow(ServerConfigurationError);
 });
 
 it.each(["http://localhost:10000", "http://127.0.0.1:10000"])("accepts local worker URL %s", (url) => {

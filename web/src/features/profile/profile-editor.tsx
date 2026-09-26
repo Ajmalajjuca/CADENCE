@@ -38,8 +38,9 @@ export function ProfileEditor() {
     edit
     initialStep={selected}
     onSavingChange={setSaving}
-    onCancel={() => { if (!saving) setSelected(null); }}
+    onCancel={() => { if (!saving) { setSaving(false); setSelected(null); } }}
     onDone={() => {
+      setSaving(false);
       setSelected(null);
       setLoading(true);
       setRevision((value) => value + 1);
@@ -56,9 +57,9 @@ export function ProfileEditor() {
   </section>;
 
   return <section className="page-container">
-    <header className="page-header">
+    <header className="page-heading">
       <p className="eyebrow">Voice and profile</p>
-      <h1 className="page-title">Your voice profile</h1>
+      <h1 className="display-heading">Your voice profile</h1>
       <p className="page-intro">Teach Cadence how you think and write. Edit one section at a time—everything else stays untouched.</p>
     </header>
     <div className="grid gap-4 md:grid-cols-2">
@@ -69,7 +70,7 @@ export function ProfileEditor() {
         </div>
         <p className="mt-3 line-clamp-2 text-sm text-[var(--muted)]">{section.summary}</p>
         <div className="mt-auto pt-5">
-          <Button variant="secondary" disabled={saving} onClick={() => setSelected(section.step)} aria-label={`Edit ${section.label}`}>Edit</Button>
+          <Button variant="secondary" disabled={saving} onClick={() => { setSaving(false); setSelected(section.step); }} aria-label={`Edit ${section.label}`}>Edit</Button>
         </div>
       </article>)}
     </div>

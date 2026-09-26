@@ -86,10 +86,24 @@ it("confirms before skipping typed optional content", async () => {
   fireEvent.change(sample, { target: { value: "Keep this draft" } });
   fireEvent.click(screen.getByRole("button", { name: "Skip for now" }));
 
-  expect(screen.getByRole("alertdialog", { name: "Discard this section?" })).toBeVisible();
+  expect(screen.getByRole("group", { name: "Discard this section?" })).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
   expect(screen.getByLabelText("Writing sample 1")).toHaveValue("Keep this draft");
   expect(fetchMock).toHaveBeenCalledTimes(1);
+});
+
+it.each([
+  ["Story 1 title", "Launch"],
+  ["Story 1 usage note", "Use for lessons"],
+])("does not discard a partial story entered in %s", async (label, value) => {
+  const fetchMock = mockProfile(5);
+  render(<OnboardingForm />);
+  fireEvent.change(await screen.findByLabelText(label), { target: { value } });
+  fireEvent.click(screen.getByRole("button", { name: "Finish setup" }));
+
+  expect(screen.getByRole("alert")).toHaveTextContent("Add the details for every story");
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  expect(push).not.toHaveBeenCalled();
 });
 
 it("explicitly skips stories and finishes setup", async () => {

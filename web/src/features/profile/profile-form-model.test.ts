@@ -47,6 +47,13 @@ describe("profile form model", () => {
     });
   });
 
+  it("rejects a partially entered story instead of silently discarding it", () => {
+    expect(() => payloadForStep({
+      ...emptyProfileForm,
+      stories: [{ title: "Launch", details: "", usageNote: "Use for lessons" }],
+    }, 6)).toThrow(/details/i);
+  });
+
   it("creates deliberate empty payloads for optional sections", () => {
     expect(payloadForStep(emptyProfileForm, 4)).toEqual({ step: 4, samples: [], voiceTraits: [] });
     expect(payloadForStep(emptyProfileForm, 5)).toEqual({
@@ -97,6 +104,18 @@ describe("profile form model", () => {
       profile: { name: "A", work: "Builder", audience: "Founders", goal: "Trust", onboarding_step: 5 },
       pillars: [{ name: "AI" }],
     })).toBe(6);
+    expect(firstIncompleteStep({
+      profile: { name: "", work: "Builder", audience: "Founders", goal: "Trust", onboarding_step: 6 },
+      pillars: [{ name: "AI" }],
+    })).toBe(1);
+    expect(firstIncompleteStep({
+      profile: { name: "A", work: "Builder", audience: "", goal: "Trust", onboarding_step: 6 },
+      pillars: [{ name: "AI" }],
+    })).toBe(2);
+    expect(firstIncompleteStep({
+      profile: { name: "A", work: "Builder", audience: "Founders", goal: "Trust", onboarding_step: 6 },
+      pillars: [],
+    })).toBe(3);
   });
 
   it("builds safe overview summaries", () => {

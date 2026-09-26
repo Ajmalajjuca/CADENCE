@@ -12,6 +12,9 @@ function validationMessage(form: ProfileFormState, step: InterviewStep): string 
   if (step === 1 && (!form.name.trim() || !form.work.trim())) return "Add your name and what you do before continuing.";
   if (step === 2 && (!form.audience.trim() || !form.goal.trim())) return "Choose an audience and tell us what your posts should achieve.";
   if (step === 3 && form.pillars.filter((pillar) => pillar.trim()).length === 0) return "Add at least one content topic before continuing.";
+  if (step === 6 && form.stories.some((story) =>
+    (story.title.trim() || story.usageNote.trim()) && !story.details.trim(),
+  )) return "Add the details for every story you started, or remove the incomplete story.";
   return "";
 }
 
@@ -100,7 +103,7 @@ export function OnboardingForm({
     onCancel={onCancel}
   >
     <InterviewStepPanel step={interview.step} form={interview.form} update={interview.update} />
-    {confirmSkip && <div role="alertdialog" aria-labelledby="discard-title" aria-describedby="discard-description" className="callout" data-tone="waiting">
+    {confirmSkip && <div role="group" aria-labelledby="discard-title" aria-describedby="discard-description" className="callout" data-tone="waiting">
       <h2 id="discard-title" className="text-lg font-semibold">Discard this section?</h2>
       <p id="discard-description" className="mt-2 text-sm">Skipping will clear the answers currently typed in this section.</p>
       <div className="mt-4 flex flex-wrap gap-2">
